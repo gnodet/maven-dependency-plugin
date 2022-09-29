@@ -19,11 +19,11 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * Goal that resolves the project source dependencies from the repository.
@@ -31,11 +31,11 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @since 2.0-alpha2
  */
-//CHECKSTYLE_OFF: LineLength
-@Mojo( name = "sources", defaultPhase = LifecyclePhase.GENERATE_SOURCES, requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true )
-//CHECKSTYLE_ON: LineLength
+@Mojo( name = "sources",
+       defaultPhase = LifecyclePhase.GENERATE_SOURCES,
+       requiresDependencyResolution = ResolutionScope.TEST )
 public class ResolveDependencySourcesMojo
-    extends ResolveDependenciesMojo
+        extends ResolveDependenciesMojo
 {
 
     private static final String SOURCE_CLASSIFIER = "sources";
@@ -43,11 +43,11 @@ public class ResolveDependencySourcesMojo
     /**
      * Main entry into mojo. Gets the list of dependencies and iterates through resolving the source jars.
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      */
     @Override
     protected void doExecute()
-        throws MojoExecutionException
+            throws MojoException
     {
         if ( StringUtils.isEmpty( this.classifier ) )
         {

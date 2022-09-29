@@ -19,23 +19,29 @@ package org.apache.maven.plugins.dependency.utils;
  * under the License.
  */
 
+
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.io.Writer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.OpenOption;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Dependency;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.plugins.dependency.utils.filters.ArtifactUtils;
 import org.codehaus.plexus.util.StringUtils;
 
 /**
  * Utility class with static helper methods.
- * 
+ *
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public final class DependencyUtil
@@ -44,8 +50,8 @@ public final class DependencyUtil
     /**
      * Builds the file name. If removeVersion is set, then the file name must be reconstructed from the artifactId,
      * Classifier (if used) and Type. Otherwise, this method returns the artifact file name.
-     * 
-     * @param artifact File to be formatted.
+     *
+     * @param artifact      File to be formatted.
      * @param removeVersion Specifies if the version should be removed from the file name.
      * @return Formatted file name in the format artifactId-[version]-[classifier].[type]
      * @see #getFormattedFileName(Artifact, boolean, boolean)
@@ -59,9 +65,9 @@ public final class DependencyUtil
      * Builds the file name. If removeVersion is set, then the file name must be reconstructed from the groupId (if
      * <b>prependGroupId</b> is true) artifactId, Classifier (if used) and Type. Otherwise, this method returns the
      * artifact file name.
-     * 
-     * @param artifact File to be formatted.
-     * @param removeVersion Specifies if the version should be removed from the file name.
+     *
+     * @param artifact       File to be formatted.
+     * @param removeVersion  Specifies if the version should be removed from the file name.
      * @param prependGroupId Specifies if the groupId should be prepended to the file name.
      * @return Formatted file name in the format [groupId].artifactId-[version]-[classifier].[type]
      */
@@ -74,9 +80,9 @@ public final class DependencyUtil
      * Builds the file name. If removeVersion is set, then the file name must be reconstructed from the groupId (if
      * <b>prependGroupId</b> is true) artifactId, Classifier (if used), and Type. Otherwise, this method returns the
      * artifact file name.
-     * 
-     * @param artifact file to be formatted
-     * @param removeVersion Specifies if the version should be removed from the file name
+     *
+     * @param artifact       file to be formatted
+     * @param removeVersion  Specifies if the version should be removed from the file name
      * @param prependGroupId Specifies if the groupId should be prepended to the file name
      * @param useBaseVersion Specifies if the baseVersion of the artifact should be used instead of the version
      * @return Formatted file name in the format [groupId].artifactId-[version]-[classifier].[type]
@@ -91,11 +97,11 @@ public final class DependencyUtil
      * Builds the file name. If removeVersion is set, then the file name must be reconstructed from the groupId (if
      * <b>prependGroupId</b> is true) artifactId, Classifier (if used) and Type. Otherwise, this method returns the
      * artifact file name.
-     * 
-     * @param artifact File to be formatted.
-     * @param removeVersion Specifies if the version should be removed from the file name.
-     * @param prependGroupId Specifies if the groupId should be prepended to the file name.
-     * @param useBaseVersion Specifies if the baseVersion of the artifact should be used instead of the version.
+     *
+     * @param artifact         File to be formatted.
+     * @param removeVersion    Specifies if the version should be removed from the file name.
+     * @param prependGroupId   Specifies if the groupId should be prepended to the file name.
+     * @param useBaseVersion   Specifies if the baseVersion of the artifact should be used instead of the version.
      * @param removeClassifier Specifies if the classifier of the artifact should be remved from the file name.
      * @return Formatted file name in the format [groupId].artifactId-[version]-[classifier].[type]
      */
@@ -114,7 +120,7 @@ public final class DependencyUtil
         {
             if ( useBaseVersion )
             {
-                versionString = "-" + ArtifactUtils.toSnapshotVersion( artifact.getVersion() );
+                versionString = "-" + ArtifactUtils.toSnapshotVersion( artifact.getVersion().asString() );
             }
             else
             {
@@ -134,28 +140,28 @@ public final class DependencyUtil
         }
         destFileName.append( artifact.getArtifactId() ).append( versionString );
         destFileName.append( classifierString ).append( "." );
-        destFileName.append( artifact.getArtifactHandler().getExtension() );
+        destFileName.append( artifact.getType().getExtension() );
 
         return destFileName.toString();
     }
 
     /**
      * Formats the outputDirectory based on type.
-     * 
-     * @param useSubdirsPerScope if a new sub directory should be used for each scope.
-     * @param useSubdirsPerType if a new sub directory should be used for each type.
+     *
+     * @param useSubdirsPerScope   if a new sub directory should be used for each scope.
+     * @param useSubdirsPerType    if a new sub directory should be used for each type.
      * @param useSubdirPerArtifact if a new sub directory should be used for each artifact.
-     * @param useRepositoryLayout if dependencies must be moved into a Maven repository layout, if set, other settings
-     *            will be ignored.
-     * @param removeVersion if the version must not be mentioned in the filename
-     * @param removeType if the type must not be mentioned in the filename
-     * @param outputDirectory base outputDirectory.
-     * @param artifact information about the artifact.
+     * @param useRepositoryLayout  if dependencies must be moved into a Maven repository layout, if set, other settings
+     *                             will be ignored.
+     * @param removeVersion        if the version must not be mentioned in the filename
+     * @param removeType           if the type must not be mentioned in the filename
+     * @param outputDirectory      base outputDirectory.
+     * @param artifact             information about the artifact.
      * @return a formatted File object to use for output.
      */
-    public static File getFormattedOutputDirectory( boolean useSubdirsPerScope, boolean useSubdirsPerType,
+    public static Path getFormattedOutputDirectory( boolean useSubdirsPerScope, boolean useSubdirsPerType,
                                                     boolean useSubdirPerArtifact, boolean useRepositoryLayout,
-                                                    boolean removeVersion, boolean removeType, File outputDirectory,
+                                                    boolean removeVersion, boolean removeType, Path outputDirectory,
                                                     Artifact artifact )
     {
         StringBuilder sb = new StringBuilder( 128 );
@@ -166,14 +172,15 @@ public final class DependencyUtil
             // artifact id
             sb.append( artifact.getArtifactId() ).append( File.separatorChar );
             // version
-            sb.append( artifact.getBaseVersion() ).append( File.separatorChar );
+            sb.append( artifact.getVersion() ).append( File.separatorChar );
         }
         else
         {
-            if ( useSubdirsPerScope )
-            {
-                sb.append( artifact.getScope() ).append( File.separatorChar );
-            }
+            // TODO: can that be supported ?
+//            if ( useSubdirsPerScope )
+//            {
+//                sb.append( artifact.getScope() ).append( File.separatorChar );
+//            }
             if ( useSubdirsPerType )
             {
                 sb.append( artifact.getType() ).append( "s" ).append( File.separatorChar );
@@ -184,7 +191,7 @@ public final class DependencyUtil
                 sb.append( artifactString ).append( File.separatorChar );
             }
         }
-        return new File( outputDirectory, sb.toString() );
+        return outputDirectory.resolve( sb.toString() );
     }
 
     private static String getDependencyId( Artifact artifact, boolean removeVersion, boolean removeType )
@@ -219,36 +226,38 @@ public final class DependencyUtil
 
     /**
      * Writes the specified string to the specified file.
-     * 
+     *
      * @param string the string to write
-     * @param file the file to write to
+     * @param file   the file to write to
      * @param append append to existing file or not
-     * @param log ignored
+     * @param log    ignored
      * @throws IOException if an I/O error occurs
      * @deprecated specify an encoding instead of a log
      */
     @Deprecated
-    public static synchronized void write( String string, File file, boolean append, Log log )
-        throws IOException
+    public static synchronized void write( String string, Path file, boolean append, Log log )
+            throws IOException
     {
         write( string, file, append, "UTF-8" );
     }
-    
+
     /**
      * Writes the specified string to the specified file.
-     * 
-     * @param string the string to write
-     * @param file the file to write to
-     * @param append append to existing file or not
+     *
+     * @param string   the string to write
+     * @param file     the file to write to
+     * @param append   append to existing file or not
      * @param encoding character set name
      * @throws IOException if an I/O error occurs
      */
-    public static synchronized void write( String string, File file, boolean append, String encoding )
-        throws IOException
+    public static synchronized void write( String string, Path file, boolean append, String encoding )
+            throws IOException
     {
-        file.getParentFile().mkdirs(); 
+        Files.createDirectories( file.getParent() );
 
-        try ( Writer writer = new OutputStreamWriter( new FileOutputStream( file, append ), encoding ) )
+        try ( Writer writer = Files.newBufferedWriter( file,
+                encoding != null ? Charset.forName( encoding ) : StandardCharsets.UTF_8,
+                append ? new OpenOption[] {StandardOpenOption.APPEND} : new OpenOption[0] ) )
         {
             writer.write( string );
         }
@@ -256,29 +265,23 @@ public final class DependencyUtil
 
     /**
      * Writes the specified string to the log at info level.
-     * 
+     *
      * @param string the string to write
-     * @param log where to log information
+     * @param log    where to log information
      * @throws IOException if an I/O error occurs
      */
     public static synchronized void log( String string, Log log )
-        throws IOException
+            throws IOException
     {
-        BufferedReader reader = new BufferedReader( new StringReader( string ) );
-
-        String line;
-
-        while ( ( line = reader.readLine() ) != null )
+        try ( BufferedReader reader = new BufferedReader( new StringReader( string ) ) )
         {
-            log.info( line );
+            reader.lines().forEach( log::info );
         }
-
-        reader.close();
     }
 
     /**
      * Mainly used to parse excludes, includes configuration.
-     * 
+     *
      * @param str the string to split
      * @return the result items
      */
@@ -289,7 +292,7 @@ public final class DependencyUtil
 
     /**
      * Clean up configuration string before it can be tokenized.
-     * 
+     *
      * @param str the string which should be cleaned
      * @return cleaned up string
      */
@@ -303,5 +306,17 @@ public final class DependencyUtil
         }
 
         return ret;
+    }
+
+    public static String getManagementKey( Dependency dependency )
+    {
+        return dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getType()
+                + ( dependency.getClassifier() != null ? ":" + dependency.getClassifier() : "" );
+    }
+
+    public static String getManagementKey( org.apache.maven.api.model.Dependency dependency )
+    {
+        return dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getType()
+                + ( dependency.getClassifier() != null ? ":" + dependency.getClassifier() : "" );
     }
 }

@@ -19,23 +19,20 @@ package org.apache.maven.plugins.dependency.fromConfiguration;
  * under the License.
  */
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Objects;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.ArtifactUtils;
+import org.apache.maven.api.Artifact;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
-import org.apache.maven.shared.transfer.dependencies.DependableCoordinate;
 import org.codehaus.plexus.components.io.filemappers.FileMapper;
 
 /**
  * ArtifactItem represents information specified in the plugin configuration section for each artifact.
  *
- * @since 1.0
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
+ * @since 1.0
  */
 public class ArtifactItem
-    implements DependableCoordinate
 {
     /**
      * Group Id of Artifact
@@ -80,7 +77,7 @@ public class ArtifactItem
      *
      * @parameter
      */
-    private File outputDirectory;
+    private Path outputDirectory;
 
     /**
      * Provides ability to change destination file name
@@ -124,9 +121,8 @@ public class ArtifactItem
     /**
      * {@link FileMapper}s to be used for rewriting each target path, or {@code null} if no rewriting shall happen.
      *
-     * @since 3.1.2
-     *
      * @parameter
+     * @since 3.1.2
      */
     private FileMapper[] fileMappers;
 
@@ -147,8 +143,8 @@ public class ArtifactItem
         this.setArtifactId( artifact.getArtifactId() );
         this.setClassifier( artifact.getClassifier() );
         this.setGroupId( artifact.getGroupId() );
-        this.setType( artifact.getType() );
-        this.setVersion( artifact.getVersion() );
+        this.setType( artifact.getType().getName() );
+        this.setVersion( artifact.getVersion().asString() );
     }
 
     private String filterEmptyString( String in )
@@ -227,11 +223,6 @@ public class ArtifactItem
     /**
      * @return Returns the base version.
      */
-    public String getBaseVersion()
-    {
-        return ArtifactUtils.toSnapshotVersion( version );
-    }
-
     /**
      * @return Classifier.
      */
@@ -258,14 +249,14 @@ public class ArtifactItem
         else
         {
             return groupId + ":" + artifactId + ":" + classifier + ":" + Objects.toString( version, "?" ) + ":"
-                + type;
+                    + type;
         }
     }
 
     /**
      * @return Returns the location.
      */
-    public File getOutputDirectory()
+    public Path getOutputDirectory()
     {
         return outputDirectory;
     }
@@ -273,7 +264,7 @@ public class ArtifactItem
     /**
      * @param outputDirectory The outputDirectory to set.
      */
-    public void setOutputDirectory( File outputDirectory )
+    public void setOutputDirectory( Path outputDirectory )
     {
         this.outputDirectory = outputDirectory;
     }
@@ -394,8 +385,7 @@ public class ArtifactItem
 
     /**
      * @return {@link FileMapper}s to be used for rewriting each target path, or {@code null} if no rewriting shall
-     *         happen.
-     *
+     * happen.
      * @since 3.1.2
      */
     public FileMapper[] getFileMappers()
@@ -405,8 +395,7 @@ public class ArtifactItem
 
     /**
      * @param fileMappers {@link FileMapper}s to be used for rewriting each target path, or {@code null} if no
-     * rewriting shall happen.
-     *
+     *                    rewriting shall happen.
      * @since 3.1.2
      */
     public void setFileMappers( FileMapper[] fileMappers )

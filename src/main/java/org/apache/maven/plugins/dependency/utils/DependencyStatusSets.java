@@ -22,33 +22,30 @@ package org.apache.maven.plugins.dependency.utils;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
-
 /**
- * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
+ * @param <T> the type of objects
  */
-public class DependencyStatusSets
+public class DependencyStatusSets<T>
 {
-    Set<Artifact> resolvedDependencies = null;
+    Set<T> resolvedDependencies = null;
 
-    Set<Artifact> unResolvedDependencies = null;
+    Set<T> unResolvedDependencies = null;
 
-    Set<Artifact> skippedDependencies = null;
+    Set<T> skippedDependencies = null;
 
     /**
      * Default ctor.
      */
     public DependencyStatusSets()
     {
-
     }
 
     /**
-     * @param resolved set of {@link Artifact}
-     * @param unResolved set of {@link Artifact}
-     * @param skipped set of {@link Artifact}
+     * @param resolved   set of {@link T}
+     * @param unResolved set of {@link T}
+     * @param skipped    set of {@link T}
      */
-    public DependencyStatusSets( Set<Artifact> resolved, Set<Artifact> unResolved, Set<Artifact> skipped )
+    public DependencyStatusSets( Set<T> resolved, Set<T> unResolved, Set<T> skipped )
     {
         if ( resolved != null )
         {
@@ -67,7 +64,7 @@ public class DependencyStatusSets
     /**
      * @return Returns the resolvedDependencies.
      */
-    public Set<Artifact> getResolvedDependencies()
+    public Set<T> getResolvedDependencies()
     {
         return this.resolvedDependencies;
     }
@@ -75,7 +72,7 @@ public class DependencyStatusSets
     /**
      * @param resolvedDependencies The resolvedDependencies to set.
      */
-    public void setResolvedDependencies( Set<Artifact> resolvedDependencies )
+    public void setResolvedDependencies( Set<T> resolvedDependencies )
     {
         if ( resolvedDependencies != null )
         {
@@ -90,7 +87,7 @@ public class DependencyStatusSets
     /**
      * @return Returns the skippedDependencies.
      */
-    public Set<Artifact> getSkippedDependencies()
+    public Set<T> getSkippedDependencies()
     {
         return this.skippedDependencies;
     }
@@ -98,7 +95,7 @@ public class DependencyStatusSets
     /**
      * @param skippedDependencies The skippedDependencies to set.
      */
-    public void setSkippedDependencies( Set<Artifact> skippedDependencies )
+    public void setSkippedDependencies( Set<T> skippedDependencies )
     {
         if ( skippedDependencies != null )
         {
@@ -113,7 +110,7 @@ public class DependencyStatusSets
     /**
      * @return Returns the unResolvedDependencies.
      */
-    public Set<Artifact> getUnResolvedDependencies()
+    public Set<T> getUnResolvedDependencies()
     {
         return this.unResolvedDependencies;
     }
@@ -121,7 +118,7 @@ public class DependencyStatusSets
     /**
      * @param unResolvedDependencies The unResolvedDependencies to set.
      */
-    public void setUnResolvedDependencies( Set<Artifact> unResolvedDependencies )
+    public void setUnResolvedDependencies( Set<T> unResolvedDependencies )
     {
         if ( unResolvedDependencies != null )
         {

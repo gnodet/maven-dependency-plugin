@@ -19,24 +19,23 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
-import java.io.IOException;
-import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Coordinate;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.ArtifactResolverException;
+import org.apache.maven.api.services.CoordinateFactory;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
-import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactsFilter;
-import org.apache.maven.shared.artifact.filter.collection.FilterArtifacts;
-import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResolverException;
-import org.apache.maven.shared.transfer.dependencies.DefaultDependableCoordinate;
-import org.apache.maven.shared.transfer.dependencies.resolve.DependencyResolverException;
+import org.apache.maven.plugins.dependency.utils.filters.IncludeExcludeFilter;
 
 /**
  * Goal that resolves all project plugins and reports and their dependencies.
@@ -44,9 +43,9 @@ import org.apache.maven.shared.transfer.dependencies.resolve.DependencyResolverE
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @since 2.0
  */
-@Mojo( name = "resolve-plugins", defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true )
+@Mojo( name = "resolve-plugins", defaultPhase = LifecyclePhase.GENERATE_SOURCES )
 public class ResolvePluginsMojo
-    extends AbstractResolveMojo
+        extends AbstractResolveMojo
 {
 
     @Parameter( property = "outputEncoding", defaultValue = "${project.reporting.outputEncoding}" )
@@ -55,11 +54,11 @@ public class ResolvePluginsMojo
     /**
      * Main entry into mojo. Gets the list of dependencies and iterates through displaying the resolved version.
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      */
     @Override
     protected void doExecute()
-        throws MojoExecutionException
+            throws MojoException
     {
         try
         {
@@ -85,7 +84,7 @@ public class ResolvePluginsMojo
                         try
                         {
                             // we want to print the absolute file name here
-                            artifactFilename = plugin.getFile().getAbsoluteFile().getPath();
+                            artifactFilename = plugin.getPath().get().toAbsolutePath().toString();
                         }
                         catch ( NullPointerException e )
                         {
@@ -102,10 +101,9 @@ public class ResolvePluginsMojo
 
                     if ( !excludeTransitive )
                     {
-                        DefaultDependableCoordinate pluginCoordinate = new DefaultDependableCoordinate();
-                        pluginCoordinate.setGroupId( plugin.getGroupId() );
-                        pluginCoordinate.setArtifactId( plugin.getArtifactId() );
-                        pluginCoordinate.setVersion( plugin.getVersion() );
+                        Coordinate pluginCoordinate = session.createCoordinate(
+                                plugin.getGroupId(), plugin.getArtifactId(), plugin.getVersion().asString(), null
+                        );
 
                         for ( final Artifact artifact : resolveArtifactDependencies( pluginCoordinate ) )
                         {
@@ -115,7 +113,7 @@ public class ResolvePluginsMojo
                                 try
                                 {
                                     // we want to print the absolute file name here
-                                    artifactFilename = artifact.getFile().getAbsoluteFile().getPath();
+                                    artifactFilename = artifact.getPath().get().toAbsolutePath().toString();
                                 }
                                 catch ( NullPointerException e )
                                 {
@@ -146,9 +144,9 @@ public class ResolvePluginsMojo
                 }
             }
         }
-        catch ( IOException | ArtifactFilterException | ArtifactResolverException | DependencyResolverException e )
+        catch ( Exception e )
         {
-            throw new MojoExecutionException( e.getMessage(), e );
+            throw new MojoException( e.getMessage(), e );
         }
     }
 
@@ -156,51 +154,50 @@ public class ResolvePluginsMojo
      * This method resolves the plugin artifacts from the project.
      *
      * @return set of resolved plugin artifacts
-     * @throws ArtifactFilterException in case of an error
      * @throws ArtifactResolverException in case of an error
      */
     protected Set<Artifact> resolvePluginArtifacts()
-        throws ArtifactFilterException, ArtifactResolverException
+            throws MojoException, ArtifactResolverException
     {
-        final Set<Artifact> plugins = getProject().getPluginArtifacts();
-        final Set<Artifact> reports = getProject().getReportArtifacts();
+        Session session = newResolvePluginProjectBuildingRequest();
+        CoordinateFactory factory = session.getService( CoordinateFactory.class );
 
-        Set<Artifact> artifacts = new LinkedHashSet<>();
-        artifacts.addAll( reports );
-        artifacts.addAll( plugins );
+        Set<Coordinate> coordinates = Stream.concat(
+                getProject().getModel().getBuild().getPlugins().stream()
+                        .map( p -> factory.create( session, p ) ),
+                getProject().getModel().getReporting().getPlugins().stream()
+                        .map( p -> factory.create( session, p ) )
+        ).collect( Collectors.toSet() );
 
-        final FilterArtifacts filter = getArtifactsFilter();
-        artifacts = filter.filter( artifacts );
+        coordinates = coordinates.stream()
+                .filter( getArtifactsFilter() ).collect( Collectors.toSet() );
 
-        Set<Artifact> resolvedArtifacts = new LinkedHashSet<>( artifacts.size() );
-        // final ArtifactFilter filter = getPluginFilter();
-        for ( final Artifact artifact : new LinkedHashSet<>( artifacts ) )
+        return coordinates.stream()
+                .map( session::resolveArtifact )
+                .collect( Collectors.toSet() );
+    }
+
+    /**
+     * @return {@link Predicate<Coordinate>}
+     */
+    protected Predicate<Coordinate> getArtifactsFilter()
+    {
+        Predicate<Coordinate> f = c -> true;
+
+        if ( excludeReactor )
         {
-            // if ( !filter.include( artifact ) )
-            // {
-            // final String logStr =
-            // String.format( " Plugin SKIPPED: %s", DependencyUtil.getFormattedFileName( artifact, false ) );
-            //
-            // if ( !silent )
-            // {
-            // this.getLog().info( logStr );
-            // }
-            //
-            // artifacts.remove( artifact );
-            // continue;
-            // }
-
-            ProjectBuildingRequest buildingRequest = newResolvePluginProjectBuildingRequest();
-
-            // resolve the new artifact
-            resolvedArtifacts.add( getArtifactResolver().resolveArtifact( buildingRequest, artifact ).getArtifact() );
+            f = f.and( new ExcludeReactorProjectsArtifactFilter( reactorProjects, getLog() ) );
         }
-        return artifacts;
+
+//        f = f.and( new ScopeFilter<>( includeScope, excludeScope, Coordinate::getScope ) );
+        f = f.and( new IncludeExcludeFilter<>( includeTypes, excludeTypes, a -> a.getType().getName() ) );
+        f = f.and(
+                new IncludeExcludeFilter<>( includeClassifiers, excludeClassifiers, Coordinate::getClassifier ) );
+        f = f.and( new IncludeExcludeFilter<>( includeGroupIds, excludeGroupIds, Coordinate::getGroupId,
+                String::startsWith ) );
+        f = f.and( new IncludeExcludeFilter<>( includeArtifactIds, excludeArtifactIds, Coordinate::getArtifactId ) );
+
+        return f;
     }
 
-    @Override
-    protected ArtifactsFilter getMarkedArtifactFilter()
-    {
-        return null;
-    }
 }

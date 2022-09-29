@@ -25,15 +25,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 import junit.framework.TestCase;
-
 import org.apache.commons.io.FileUtils;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.plugin.testing.SilentLog;
 import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
-import org.apache.maven.plugin.logging.Log;
-import org.apache.maven.plugin.testing.SilentLog;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
 
 /**
  * @author brianf
@@ -103,12 +99,12 @@ public class TestDestFileFilter
         DestFileFilter filter = new DestFileFilter( outputFolder );
         Artifact artifact = fact.getReleaseArtifact();
 
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
         createFile( artifact );
-        assertFalse( filter.isArtifactIncluded( artifact ) );
+        assertFalse( filter.test( artifact ) );
 
         filter.setOverWriteReleases( true );
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
     }
 
     public void testDestFileSnapshot()
@@ -117,12 +113,12 @@ public class TestDestFileFilter
         DestFileFilter filter = new DestFileFilter( outputFolder );
         Artifact artifact = fact.getSnapshotArtifact();
 
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
         createFile( artifact );
-        assertFalse( filter.isArtifactIncluded( artifact ) );
+        assertFalse( filter.test( artifact ) );
 
         filter.setOverWriteSnapshots( true );
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
     }
 
     public void testDestFileStripVersion()
@@ -132,12 +128,12 @@ public class TestDestFileFilter
         Artifact artifact = fact.getSnapshotArtifact();
         filter.setRemoveVersion( true );
 
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
         createFile( artifact, false, false, true );
-        assertFalse( filter.isArtifactIncluded( artifact ) );
+        assertFalse( filter.test( artifact ) );
 
         filter.setOverWriteSnapshots( true );
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
     }
 
     public void testDestFileStripClassifier()
@@ -147,12 +143,12 @@ public class TestDestFileFilter
         Artifact artifact = fact.getSnapshotArtifact();
         filter.setRemoveClassifier( true );
 
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
         createFile( artifact, false, false, false, true );
-        assertFalse( filter.isArtifactIncluded( artifact ) );
+        assertFalse( filter.test( artifact ) );
 
         filter.setOverWriteSnapshots( true );
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
     }
 
     public void testDestFileSubPerArtifact()
@@ -162,31 +158,31 @@ public class TestDestFileFilter
         Artifact artifact = fact.getSnapshotArtifact();
         filter.setUseSubDirectoryPerArtifact( true );
 
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
         createFile( artifact, true, false, false );
-        assertFalse( filter.isArtifactIncluded( artifact ) );
+        assertFalse( filter.test( artifact ) );
 
         filter.setOverWriteSnapshots( true );
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
     }
 
     public void testDestFileSubPerType()
-        throws MojoExecutionException, IOException, ArtifactFilterException
+        throws MojoException, IOException, ArtifactFilterException
     {
         DestFileFilter filter = new DestFileFilter( outputFolder );
         Artifact artifact = fact.getSnapshotArtifact();
         filter.setUseSubDirectoryPerType( true );
 
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
         createFile( artifact, false, true, false );
-        assertFalse( filter.isArtifactIncluded( artifact ) );
+        assertFalse( filter.test( artifact ) );
 
         filter.setOverWriteSnapshots( true );
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
     }
 
     public void testDestFileOverwriteIfNewer()
-        throws MojoExecutionException, IOException, ArtifactFilterException
+        throws MojoException, IOException, ArtifactFilterException
     {
         DestFileFilter filter = new DestFileFilter( outputFolder );
 
@@ -197,19 +193,19 @@ public class TestDestFileFilter
         filter.setOverWriteIfNewer( true );
 
         // should pass because the file doesn't exist yet.
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
 
         // create the file in the destination
         File destFile = createFile( artifact, false, false, false );
 
         // set the last modified timestamp to be older than the source
         assertTrue( destFile.setLastModified( artifactFile.lastModified() - 1000 ) );
-        assertTrue( filter.isArtifactIncluded( artifact ) );
+        assertTrue( filter.test( artifact ) );
 
         // now set the last modified timestamp to be newer than the source
         assertTrue( destFile.setLastModified( artifactFile.lastModified() + 1000 ) );
 
-        assertFalse( filter.isArtifactIncluded( artifact ) );
+        assertFalse( filter.test( artifact ) );
     }
 
     public void testGettersSetters()

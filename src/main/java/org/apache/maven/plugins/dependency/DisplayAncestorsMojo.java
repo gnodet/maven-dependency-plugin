@@ -19,18 +19,17 @@ package org.apache.maven.plugins.dependency;
  * under the License.
  */
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.project.MavenProject;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+
+import org.apache.maven.api.Project;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Component;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
 
 /**
  * Displays all ancestor POMs of the project. This may be useful in a continuous integration system where you want to
@@ -39,20 +38,23 @@ import java.util.Locale;
  * @author Mirko Friedenhagen
  * @since 2.9
  */
-@Mojo( name = "display-ancestors", threadSafe = true, requiresProject = true, defaultPhase = LifecyclePhase.VALIDATE )
+@Mojo( name = "display-ancestors", requiresProject = true, defaultPhase = LifecyclePhase.VALIDATE )
 public class DisplayAncestorsMojo
-    extends AbstractMojo
+        implements org.apache.maven.api.plugin.Mojo
 {
 
     /**
      * POM
      */
     @Parameter( defaultValue = "${project}", readonly = true )
-    private MavenProject project;
+    private Project project;
+
+    @Component
+    private Log log;
 
     @Override
     public void execute()
-        throws MojoExecutionException, MojoFailureException
+            throws MojoException
     {
         final List<String> ancestors = collectAncestors();
 
@@ -62,24 +64,28 @@ public class DisplayAncestorsMojo
         }
         else
         {
-            getLog().info( String.format( Locale.US, "Ancestor POMs: %s", StringUtils.join( ancestors, " <- " ) ) );
+            getLog().info( "Ancestor POMs: " + String.join( " <- ", ancestors ) );
         }
+    }
 
+    protected Log getLog()
+    {
+        return log;
     }
 
     private ArrayList<String> collectAncestors()
     {
         final ArrayList<String> ancestors = new ArrayList<>();
 
-        MavenProject currentAncestor = project.getParent();
+        Project currentAncestor = project.getParent().orElse( null );
         while ( currentAncestor != null )
         {
             final String gav = String.format( Locale.US, "%s:%s:%s", currentAncestor.getGroupId(),
-                                              currentAncestor.getArtifactId(), currentAncestor.getVersion() );
+                    currentAncestor.getArtifactId(), currentAncestor.getVersion() );
 
             ancestors.add( gav );
 
-            currentAncestor = currentAncestor.getParent();
+            currentAncestor = currentAncestor.getParent().orElse( null );
         }
 
         return ancestors;

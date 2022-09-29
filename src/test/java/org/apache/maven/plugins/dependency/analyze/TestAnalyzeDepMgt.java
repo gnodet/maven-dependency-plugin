@@ -19,8 +19,6 @@ package org.apache.maven.plugins.dependency.analyze;
  * under the License.
  */
 
-import static org.junit.Assert.assertNotEquals;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,7 +32,6 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Exclusion;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
 import org.apache.maven.plugins.dependency.testUtils.stubs.DependencyProjectStub;
@@ -113,40 +110,40 @@ public class TestAnalyzeDepMgt
             stubFactory.createArtifact( "group", "artifact", "1.0", Artifact.SCOPE_COMPILE, "type", "class" );
 
         // basic case ok
-        assertEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         // now change each one and make sure it fails, then set it back and make
         // sure it's ok before
         // testing the next one
         dep.setType( "t" );
-        assertNotEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertNotEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setType( "type" );
-        assertEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setArtifactId( "a" );
-        assertNotEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertNotEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setArtifactId( "artifact" );
-        assertEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setClassifier( "c" );
-        assertNotEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertNotEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setClassifier( "class" );
-        assertEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setGroupId( "g" );
-        assertNotEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertNotEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setGroupId( "group" );
         dep.setClassifier( null );
         artifact = stubFactory.createArtifact( "group", "artifact", "1.0", Artifact.SCOPE_COMPILE, "type", null );
-        assertEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
 
         dep.setClassifier( "" );
         artifact = stubFactory.createArtifact( "group", "artifact", "1.0", Artifact.SCOPE_COMPILE, "type", "" );
-        assertEquals( dep.getManagementKey(), mojo.getArtifactManagementKey( artifact ) );
+        assertEquals( getManagementKey( dep ), mojo.getArtifactManagementKey( artifact ) );
     }
 
     public void testAddExclusions()
@@ -183,7 +180,7 @@ public class TestAnalyzeDepMgt
     {
         Map<String, Dependency> depMgtMap = new HashMap<>();
 
-        depMgtMap.put( exclusion.getManagementKey(), exclusion );
+        depMgtMap.put( getManagementKey( exclusion ), exclusion );
 
         Map<Artifact, Dependency> results = mojo.getMismatch( depMgtMap, mojo.getProject().getArtifacts() );
 
@@ -194,7 +191,7 @@ public class TestAnalyzeDepMgt
     }
 
     public void testMojo()
-        throws IOException, MojoExecutionException, MojoFailureException
+        throws IOException, MojoException, MojoFailureException
     {
         mojo.setIgnoreDirect( false );
         // test with nothing in depMgt
@@ -212,7 +209,7 @@ public class TestAnalyzeDepMgt
             mojo.execute();
             fail( "Expected exception to fail the build." );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
         }
 

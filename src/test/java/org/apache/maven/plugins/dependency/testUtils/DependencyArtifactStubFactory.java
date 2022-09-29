@@ -28,8 +28,8 @@ import java.util.List;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.artifact.versioning.VersionRange;
-import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
 import org.apache.maven.plugin.testing.ArtifactStubFactory;
+import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
 
 public class DependencyArtifactStubFactory
     extends ArtifactStubFactory

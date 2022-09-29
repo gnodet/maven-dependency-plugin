@@ -19,15 +19,16 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
-import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.ResolutionScope;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.maven.api.Node;
+import org.apache.maven.api.RemoteRepository;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.services.DependencyCollectorException;
 import org.apache.maven.plugins.dependency.AbstractDependencyMojo;
-import org.apache.maven.shared.transfer.dependencies.collect.CollectorResult;
-import org.apache.maven.shared.transfer.dependencies.collect.DependencyCollector;
-import org.apache.maven.shared.transfer.dependencies.collect.DependencyCollectorException;
 
 /**
  * Goal that resolves all project dependencies and then lists the repositories used by the build and by the transitive
@@ -36,40 +37,39 @@ import org.apache.maven.shared.transfer.dependencies.collect.DependencyCollector
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @since 2.2
  */
-@Mojo( name = "list-repositories", requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true )
+@Mojo( name = "list-repositories", requiresDependencyResolution = ResolutionScope.TEST )
 public class ListRepositoriesMojo
-    extends AbstractDependencyMojo
+        extends AbstractDependencyMojo
 {
     /**
      * Dependency collector, needed to resolve dependencies.
      */
-    @Component( role = DependencyCollector.class )
-    private DependencyCollector dependencyCollector;
-
     /**
      * Displays a list of the repositories used by this build.
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      */
     @Override
     protected void doExecute()
-        throws MojoExecutionException
+            throws MojoException
     {
         try
         {
-            CollectorResult collectResult =
-                dependencyCollector.collectDependencies( session.getProjectBuildingRequest(), getProject().getModel() );
+            Node node = session.collectDependencies( getProject() );
+            Set<RemoteRepository> repositories = node.stream()
+                    .flatMap( n -> n.getRemoteRepositories().stream() )
+                    .collect( Collectors.toSet() );
 
             this.getLog().info( "Repositories used by this build:" );
 
-            for ( ArtifactRepository repo : collectResult.getRemoteRepositories() )
+            for ( RemoteRepository repo : repositories )
             {
                 this.getLog().info( repo.toString() );
             }
         }
         catch ( DependencyCollectorException e )
         {
-            throw new MojoExecutionException( "Unable to resolve artifacts", e );
+            throw new MojoException( "Unable to resolve artifacts", e );
         }
     }
 

@@ -19,20 +19,19 @@ package org.apache.maven.plugins.dependency.fromConfiguration;
  * under the License.
  */
 
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.dependency.utils.filters.ArtifactItemFilter;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.function.Predicate;
+
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
 import org.apache.maven.plugins.dependency.utils.filters.MarkerFileFilter;
 import org.apache.maven.plugins.dependency.utils.markers.MarkerHandler;
 import org.apache.maven.plugins.dependency.utils.markers.UnpackFileMarkerHandler;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.components.io.filemappers.FileMapper;
 import org.codehaus.plexus.util.StringUtils;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * Goal that retrieves a list of artifacts from the repository and unpacks them in a defined location.
@@ -40,16 +39,16 @@ import java.util.List;
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @since 1.0
  */
-@Mojo( name = "unpack", defaultPhase = LifecyclePhase.PROCESS_SOURCES, requiresProject = false, threadSafe = true )
+@Mojo( name = "unpack", defaultPhase = LifecyclePhase.PROCESS_SOURCES, requiresProject = false )
 public class UnpackMojo
-    extends AbstractFromConfigurationMojo
+        extends AbstractFromConfigurationMojo
 {
 
     /**
      * Directory to store flag files after unpack
      */
     @Parameter( defaultValue = "${project.build.directory}/dependency-maven-plugin-markers" )
-    private File markersDirectory;
+    private Path markersDirectory;
 
     /**
      * A comma separated list of file patterns to include when unpacking the artifact. i.e.
@@ -92,20 +91,15 @@ public class UnpackMojo
      * Main entry into mojo. This method gets the ArtifactItems and iterates through each one passing it to
      * unpackArtifact.
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      * @see ArtifactItem
      * @see #getArtifactItems
      * @see #unpackArtifact(ArtifactItem)
      */
     @Override
     protected void doExecute()
-        throws MojoExecutionException, MojoFailureException
+            throws MojoException
     {
-        if ( isSkip() )
-        {
-            return;
-        }
-
         verifyRequirements();
 
         List<ArtifactItem> processedItems = getProcessedArtifactItems( false );
@@ -117,7 +111,7 @@ public class UnpackMojo
             }
             else
             {
-                this.getLog().info( artifactItem.getArtifact().getFile().getName() + " already unpacked." );
+                this.getLog().info( artifactItem.getArtifact().getPath().get().getFileName() + " already unpacked." );
             }
         }
     }
@@ -126,11 +120,11 @@ public class UnpackMojo
      * This method gets the Artifact object and calls DependencyUtil.unpackFile.
      *
      * @param artifactItem containing the information about the Artifact to unpack.
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      * @see #getArtifact
      */
     private void unpackArtifact( ArtifactItem artifactItem )
-        throws MojoExecutionException
+            throws MojoException
     {
         MarkerHandler handler = new UnpackFileMarkerHandler( artifactItem, this.markersDirectory );
 
@@ -141,24 +135,25 @@ public class UnpackMojo
     }
 
     @Override
-    ArtifactItemFilter getMarkedArtifactFilter( ArtifactItem item )
+    Predicate<ArtifactItem> getMarkedArtifactFilter( ArtifactItem item )
     {
         MarkerHandler handler = new UnpackFileMarkerHandler( item, this.markersDirectory );
 
         return new MarkerFileFilter( this.isOverWriteReleases(), this.isOverWriteSnapshots(), this.isOverWriteIfNewer(),
-                                     handler );
+                handler );
     }
 
     /**
      * @param removeVersion removeVersion.
      * @return list of {@link ArtifactItem}
-     * @throws MojoExecutionException in case of an error.
+     * @throws MojoException in case of an error.
      */
     protected List<ArtifactItem> getProcessedArtifactItems( boolean removeVersion )
-        throws MojoExecutionException
+            throws MojoException
     {
         List<ArtifactItem> items =
-            super.getProcessedArtifactItems( new ProcessArtifactItemsRequest( removeVersion, false, false, false ) );
+                super.getProcessedArtifactItems(
+                        new ProcessArtifactItemsRequest( removeVersion, false, false, false ) );
         for ( ArtifactItem artifactItem : items )
         {
             if ( StringUtils.isEmpty( artifactItem.getIncludes() ) )
@@ -176,7 +171,7 @@ public class UnpackMojo
     /**
      * @return Returns the markersDirectory.
      */
-    public File getMarkersDirectory()
+    public Path getMarkersDirectory()
     {
         return this.markersDirectory;
     }
@@ -184,7 +179,7 @@ public class UnpackMojo
     /**
      * @param theMarkersDirectory The markersDirectory to set.
      */
-    public void setMarkersDirectory( File theMarkersDirectory )
+    public void setMarkersDirectory( Path theMarkersDirectory )
     {
         this.markersDirectory = theMarkersDirectory;
     }
@@ -223,8 +218,7 @@ public class UnpackMojo
 
     /**
      * @return {@link FileMapper}s to be used for rewriting each target path, or {@code null} if no rewriting shall
-     *         happen.
-     *
+     * happen.
      * @since 3.1.2
      */
     public FileMapper[] getFileMappers()
@@ -234,8 +228,7 @@ public class UnpackMojo
 
     /**
      * @param fileMappers {@link FileMapper}s to be used for rewriting each target path, or {@code null} if no
-     * rewriting shall happen.
-     *
+     *                    rewriting shall happen.
      * @since 3.1.2
      */
     public void setFileMappers( FileMapper[] fileMappers )

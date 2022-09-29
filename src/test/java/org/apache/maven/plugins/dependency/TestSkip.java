@@ -1,10 +1,10 @@
 package org.apache.maven.plugins.dependency;
 
+import java.io.File;
+
 import org.apache.maven.plugin.Mojo;
 import org.apache.maven.plugin.logging.Log;
 import org.mockito.ArgumentCaptor;
-
-import java.io.File;
 
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;

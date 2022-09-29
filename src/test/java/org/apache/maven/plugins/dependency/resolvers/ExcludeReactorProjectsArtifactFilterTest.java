@@ -19,6 +19,9 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugin.testing.stubs.ArtifactStub;
@@ -27,9 +30,6 @@ import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
 import org.mockito.ArgumentCaptor;
-
-import java.util.HashSet;
-import java.util.Set;
 
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;

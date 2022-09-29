@@ -20,7 +20,6 @@ package org.apache.maven.plugins.dependency.utils;
  */
 
 import junit.framework.TestCase;
-
 import org.apache.maven.plugin.logging.Log;
 import org.codehaus.plexus.logging.Logger;
 

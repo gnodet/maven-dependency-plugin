@@ -19,30 +19,23 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
-import java.io.File;
-import java.util.LinkedHashSet;
+import java.nio.file.Path;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Coordinate;
+import org.apache.maven.api.Node;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.DependencyResolverException;
 import org.apache.maven.plugins.dependency.fromDependencies.AbstractDependencyFilterMojo;
-import org.apache.maven.plugins.dependency.utils.DependencyUtil;
-import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactIdFilter;
-import org.apache.maven.shared.artifact.filter.collection.ClassifierFilter;
-import org.apache.maven.shared.artifact.filter.collection.FilterArtifacts;
-import org.apache.maven.shared.artifact.filter.collection.GroupIdFilter;
-import org.apache.maven.shared.artifact.filter.collection.ScopeFilter;
-import org.apache.maven.shared.artifact.filter.collection.TypeFilter;
-import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResult;
-import org.apache.maven.shared.transfer.dependencies.DependableCoordinate;
-import org.apache.maven.shared.transfer.dependencies.resolve.DependencyResolverException;
 
 /**
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public abstract class AbstractResolveMojo
-    extends AbstractDependencyFilterMojo
+        extends AbstractDependencyFilterMojo
 {
     /**
      * If specified, this parameter causes the dependencies to be written to the path specified instead of
@@ -51,7 +44,7 @@ public abstract class AbstractResolveMojo
      * @since 2.0
      */
     @Parameter( property = "outputFile" )
-    protected File outputFile;
+    protected Path outputFile;
 
     /**
      * Whether to append outputs into the output file or overwrite it.
@@ -72,46 +65,16 @@ public abstract class AbstractResolveMojo
     /**
      * <i>not used in this goal</i>
      */
+    @Deprecated
     @Parameter
     protected boolean useJvmChmod = true;
 
     /**
      * <i>not used in this goal</i>
      */
+    @Deprecated
     @Parameter
     protected boolean ignorePermissions;
-
-    /**
-     * @return {@link FilterArtifacts}
-     */
-    protected FilterArtifacts getArtifactsFilter()
-    {
-        final FilterArtifacts filter = new FilterArtifacts();
-
-        if ( excludeReactor )
-        {
-
-            filter.addFilter( new ExcludeReactorProjectsArtifactFilter( reactorProjects, getLog() ) );
-
-        }
-
-        filter.addFilter( new ScopeFilter( DependencyUtil.cleanToBeTokenizedString( this.includeScope ),
-                                           DependencyUtil.cleanToBeTokenizedString( this.excludeScope ) ) );
-
-        filter.addFilter( new TypeFilter( DependencyUtil.cleanToBeTokenizedString( this.includeTypes ),
-                                          DependencyUtil.cleanToBeTokenizedString( this.excludeTypes ) ) );
-
-        filter.addFilter( new ClassifierFilter( DependencyUtil.cleanToBeTokenizedString( this.includeClassifiers ),
-                                                DependencyUtil.cleanToBeTokenizedString( this.excludeClassifiers ) ) );
-
-        filter.addFilter( new GroupIdFilter( DependencyUtil.cleanToBeTokenizedString( this.includeGroupIds ),
-                                             DependencyUtil.cleanToBeTokenizedString( this.excludeGroupIds ) ) );
-
-        filter.addFilter( new ArtifactIdFilter( DependencyUtil.cleanToBeTokenizedString( this.includeArtifactIds ),
-                                                DependencyUtil.cleanToBeTokenizedString( this.excludeArtifactIds ) ) );
-
-        return filter;
-    }
 
     /**
      * This method resolves all transitive dependencies of an artifact.
@@ -120,22 +83,13 @@ public abstract class AbstractResolveMojo
      * @return resolved set of dependencies
      * @throws DependencyResolverException in case of error while resolving artifacts.
      */
-    protected Set<Artifact> resolveArtifactDependencies( final DependableCoordinate artifact )
-        throws DependencyResolverException
+    protected Set<Artifact> resolveArtifactDependencies( final Coordinate artifact )
+            throws DependencyResolverException
     {
-        ProjectBuildingRequest buildingRequest = newResolveArtifactProjectBuildingRequest();
+        Session session = newResolveArtifactProjectBuildingRequest();
 
-        Iterable<ArtifactResult> artifactResults =
-            getDependencyResolver().resolveDependencies( buildingRequest, artifact, null );
+        Node node = session.resolveDependencies( session.createDependency( artifact ) );
 
-        Set<Artifact> artifacts = new LinkedHashSet<>();
-
-        for ( final ArtifactResult artifactResult : artifactResults )
-        {
-            artifacts.add( artifactResult.getArtifact() );
-        }
-
-        return artifacts;
-
+        return node.stream().map( Node::getArtifact ).collect( Collectors.toSet() );
     }
 }

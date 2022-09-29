@@ -19,6 +19,9 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.logging.Log;
@@ -29,12 +32,7 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.artifact.filter.resolve.Node;
 import org.mockito.ArgumentCaptor;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
 import static java.util.Collections.singletonList;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,7 +75,7 @@ public class ExcludeReactorProjectsDependencyFilterTest extends AbstractDependen
             }
         };
 
-        assertFalse( filter.accept( node , Collections.<Node>emptyList() ) );
+        assertFalse( filter.accept( node ) );
     }
 
     public void testRejectWithLogging()
@@ -116,7 +114,7 @@ public class ExcludeReactorProjectsDependencyFilterTest extends AbstractDependen
             }
         };
 
-        filter.accept( node , Collections.<Node>emptyList() );
+        filter.accept( node );
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass( String.class );
         verify( log ).debug( captor.capture() );
@@ -159,6 +157,6 @@ public class ExcludeReactorProjectsDependencyFilterTest extends AbstractDependen
             }
         };
 
-        assertTrue( filter.accept( node , Collections.<Node>emptyList() ) );
+        assertTrue( filter.accept( node ) );
     }
 }

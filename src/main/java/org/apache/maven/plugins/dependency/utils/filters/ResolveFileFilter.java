@@ -16,19 +16,18 @@ package org.apache.maven.plugins.dependency.utils.filters;
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.    
+ * under the License.
  */
 
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.api.plugin.MojoException;
 import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
 import org.apache.maven.plugins.dependency.utils.markers.MarkerHandler;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
 
 /**
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public class ResolveFileFilter
-    extends MarkerFileFilter
+        extends MarkerFileFilter
 {
 
     /**
@@ -40,17 +39,10 @@ public class ResolveFileFilter
     }
 
     @Override
-    public boolean isArtifactIncluded( ArtifactItem item )
-        throws ArtifactFilterException
+    public boolean test( ArtifactItem item )
+            throws MojoException
     {
         handler.setArtifact( item.getArtifact() );
-        try
-        {
-            return ( !handler.isMarkerSet() );
-        }
-        catch ( MojoExecutionException e )
-        {
-            throw new ArtifactFilterException( e.getMessage(), e );
-        }
+        return ( !handler.isMarkerSet() );
     }
 }

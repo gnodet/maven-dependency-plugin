@@ -29,7 +29,6 @@ import org.apache.maven.artifact.handler.manager.ArtifactHandlerManager;
 import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.LegacySupport;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
@@ -78,14 +77,14 @@ public class TestCopyDependenciesMojo
         setVariableValueToObject( mojo, "artifactHandlerManager", manager );
     }
 
-    public void assertNoMarkerFile( Artifact artifact ) throws MojoExecutionException
+    public void assertNoMarkerFile( Artifact artifact ) throws MojoException
     {
         DefaultFileMarkerHandler handle = new DefaultFileMarkerHandler( artifact, mojo.markersDirectory );
         assertFalse( handle.isMarkerSet() );
     }
 
     public void testCopyFile()
-        throws MojoExecutionException, IOException
+        throws MojoException, IOException
     {
         File src = File.createTempFile( "copy", null );
 
@@ -494,7 +493,7 @@ public class TestCopyDependenciesMojo
             mojo.execute();
             fail( "ExpectedException" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
 
         }
@@ -507,7 +506,7 @@ public class TestCopyDependenciesMojo
      */
 
     public void testDontOverWriteRelease()
-        throws MojoExecutionException, InterruptedException, IOException, MojoFailureException
+        throws MojoException, InterruptedException, IOException, MojoFailureException
     {
 
         Set<Artifact> artifacts = new HashSet<>();
@@ -538,7 +537,7 @@ public class TestCopyDependenciesMojo
     }
 
     public void testOverWriteRelease()
-        throws MojoExecutionException, IOException, MojoFailureException
+        throws MojoException, IOException, MojoFailureException
     {
 
         Set<Artifact> artifacts = new HashSet<>();
@@ -570,7 +569,7 @@ public class TestCopyDependenciesMojo
     }
 
     public void testDontOverWriteSnap()
-        throws MojoExecutionException, IOException, MojoFailureException
+        throws MojoException, IOException, MojoFailureException
     {
 
         Set<Artifact> artifacts = new HashSet<>();
@@ -601,7 +600,7 @@ public class TestCopyDependenciesMojo
     }
 
     public void testOverWriteSnap()
-        throws MojoExecutionException, IOException, MojoFailureException
+        throws MojoException, IOException, MojoFailureException
     {
 
         Set<Artifact> artifacts = new HashSet<>();
@@ -632,7 +631,7 @@ public class TestCopyDependenciesMojo
     }
 
     public void testGetDependencies()
-        throws MojoExecutionException
+        throws MojoException
     {
         assertEquals( mojo.getResolvedDependencies( true ).toString(),
                       mojo.getDependencySets( true ).getResolvedDependencies().toString() );
@@ -713,7 +712,7 @@ public class TestCopyDependenciesMojo
             mojo.execute();
             fail( "expected an exception" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
 
         }

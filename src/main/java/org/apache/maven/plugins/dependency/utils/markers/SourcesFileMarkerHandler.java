@@ -16,20 +16,22 @@ package org.apache.maven.plugins.dependency.utils.markers;
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.    
+ * under the License.
  */
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.plugins.dependency.utils.filters.ArtifactUtils;
 
 /**
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public class SourcesFileMarkerHandler
-    extends DefaultFileMarkerHandler
+        extends DefaultFileMarkerHandler
 {
 
     boolean resolved;
@@ -37,40 +39,55 @@ public class SourcesFileMarkerHandler
     /**
      * @param markerFilesDirectory the marker files directory.
      */
-    public SourcesFileMarkerHandler( File markerFilesDirectory )
+    public SourcesFileMarkerHandler( Path markerFilesDirectory )
     {
         super( markerFilesDirectory );
     }
 
     /**
-     * @param artifact {@link Artifact}
+     * @param artifact             {@link Artifact}
      * @param markerFilesDirectory marker files directory.
-     * @param isResolved true/false.
-     */ 
-    public SourcesFileMarkerHandler( Artifact artifact, File markerFilesDirectory, boolean isResolved )
+     * @param isResolved           true/false.
+     */
+    public SourcesFileMarkerHandler( Artifact artifact, Path markerFilesDirectory, boolean isResolved )
     {
         super( artifact, markerFilesDirectory );
         this.resolved = isResolved;
     }
 
+    private static boolean delete( Path marker )
+    {
+        boolean markResult;
+        try
+        {
+            Files.delete( marker );
+            markResult = true;
+        }
+        catch ( IOException e )
+        {
+            markResult = false;
+        }
+        return markResult;
+    }
+
     /**
      * Returns properly formatted File
-     * 
+     *
      * @return File object for marker. The file is not guaranteed to exist.
      */
     @Override
-    public File getMarkerFile()
+    public Path getMarkerFile()
     {
         return getMarkerFile( this.resolved );
     }
 
     /**
      * Get MarkerFile, exposed for unit testing purposes
-     * 
+     *
      * @param res resolved or not.
      * @return marker file for this artifact.
      */
-    protected File getMarkerFile( boolean res )
+    protected Path getMarkerFile( boolean res )
     {
         String suffix;
         if ( res )
@@ -82,44 +99,45 @@ public class SourcesFileMarkerHandler
             suffix = ".unresolved";
         }
 
-        return new File( this.markerFilesDirectory, this.artifact.getId().replace( ':', '-' ) + suffix );
+        return this.markerFilesDirectory.resolve( ArtifactUtils.getIdWithDashes( this.artifact ) + suffix );
     }
 
     /**
      * Tests whether the file or directory denoted by this abstract pathname exists.
-     * 
+     *
      * @return <code>true</code> if and only if the file or directory denoted by this abstract pathname exists;
-     *         <code>false</code> otherwise
-     * @throws MojoExecutionException If a security manager exists and its <code>{@link
-     *          java.lang.SecurityManager#checkRead(java.lang.String)}</code> method denies read access to the file or
-     *             directory
+     * <code>false</code> otherwise
+     * @throws MojoException If a security manager exists and its <code>{@link
+     *                       java.lang.SecurityManager#checkRead(java.lang.String)}</code> method denies read access to
+     *                       the file or
+     *                       directory
      */
     @Override
     public boolean isMarkerSet()
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
+        Path marker = getMarkerFile();
 
-        File marker2 = getMarkerFile( !this.resolved );
+        Path marker2 = getMarkerFile( !this.resolved );
 
-        return marker.exists() || marker2.exists();
+        return Files.exists( marker ) || Files.exists( marker2 );
     }
 
     @Override
     public boolean isMarkerOlder( Artifact theArtifact )
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
-        if ( marker.exists() )
+        Path marker = getMarkerFile();
+        if ( Files.exists( marker ) )
         {
-            return theArtifact.getFile().lastModified() > marker.lastModified();
+            return isNewer( theArtifact.getPath().get(), marker );
         }
         else
         {
             marker = getMarkerFile( !this.resolved );
-            if ( marker.exists() )
+            if ( Files.exists( marker ) )
             {
-                return theArtifact.getFile().lastModified() > marker.lastModified();
+                return isNewer( theArtifact.getPath().get(), marker );
             }
             else
             {
@@ -132,57 +150,55 @@ public class SourcesFileMarkerHandler
 
     @Override
     public void setMarker()
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
+        Path marker = getMarkerFile();
 
         // get the other file if it exists.
-        File clearMarker = getMarkerFile( !this.resolved );
+        Path clearMarker = getMarkerFile( !this.resolved );
         // create marker file
         try
         {
-            marker.getParentFile().mkdirs();
+            Files.createDirectories( marker.getParent() );
         }
         catch ( NullPointerException e )
         {
             // parent is null, ignore it.
         }
+        catch ( IOException e )
+        {
+            throw new MojoException( "Unable to create directory: " + marker.getParent(), e );
+        }
 
         try
         {
-            marker.createNewFile();
+            Files.createFile( marker );
             // clear the other file if it exists.
-            if ( clearMarker.exists() )
-            {
-                if ( !clearMarker.delete() )
-                {
-                    clearMarker.deleteOnExit();
-                }
-            }
+            Files.deleteIfExists( clearMarker );
         }
         catch ( IOException e )
         {
-            throw new MojoExecutionException( "Unable to create Marker: " + marker.getAbsolutePath(), e );
+            throw new MojoException( "Unable to create Marker: " + marker.toAbsolutePath(), e );
         }
     }
 
     /**
      * Deletes the file or directory denoted by this abstract pathname. If this pathname denotes a directory, then the
      * directory must be empty in order to be deleted.
-     * 
+     *
      * @return <code>true</code> if and only if the file or directory is successfully deleted; <code>false</code>
-     *         otherwise
+     * otherwise
      * @throws SecurityException If a security manager exists and its <code>{@link
-     *          java.lang.SecurityManager#checkDelete}</code> method denies delete access to the file
+     *                           java.lang.SecurityManager#checkDelete}</code> method denies delete access to the file
      */
     @Override
     public boolean clearMarker()
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
-        File marker2 = getMarkerFile( !this.resolved );
-        boolean markResult = marker.delete();
-        boolean mark2Result = marker2.delete();
+        Path marker = getMarkerFile();
+        Path marker2 = getMarkerFile( !this.resolved );
+        boolean markResult = delete( marker );
+        boolean mark2Result = delete( marker2 );
         return markResult || mark2Result;
     }
 

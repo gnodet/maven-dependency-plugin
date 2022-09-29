@@ -19,40 +19,33 @@ package org.apache.maven.plugins.dependency.utils.filters;
  * under the License.
  */
 
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.function.Predicate;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.plugin.MojoException;
 import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
 import org.apache.maven.plugins.dependency.utils.markers.MarkerHandler;
-import org.apache.maven.shared.artifact.filter.collection.AbstractArtifactsFilter;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
 
 /**
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public class MarkerFileFilter
-    extends AbstractArtifactsFilter
-    implements ArtifactItemFilter
+        implements Predicate<ArtifactItem>
 {
-
-    private boolean overWriteReleases;
-
-    private boolean overWriteSnapshots;
-
-    private boolean overWriteIfNewer;
 
     /**
      * The handler.
      */
     protected final MarkerHandler handler;
+    private boolean overWriteReleases;
+    private boolean overWriteSnapshots;
+    private boolean overWriteIfNewer;
 
     /**
-     * @param overWriteReleases true/false.
+     * @param overWriteReleases  true/false.
      * @param overWriteSnapshots true/false.
-     * @param overWriteIfNewer true/false.
-     * @param handler {@link MarkerHandler}
+     * @param overWriteIfNewer   true/false.
+     * @param handler            {@link MarkerHandler}
      */
     public MarkerFileFilter( boolean overWriteReleases, boolean overWriteSnapshots, boolean overWriteIfNewer,
                              MarkerHandler handler )
@@ -63,36 +56,14 @@ public class MarkerFileFilter
         this.handler = handler;
     }
 
-    /*
-     * (non-Javadoc)
-     * @see org.apache.mojo.dependency.utils.filters.ArtifactsFilter#filter(java.util.Set,
-     * org.apache.maven.plugin.logging.Log)
-     */
     @Override
-    public Set<Artifact> filter( Set<Artifact> artifacts )
-        throws ArtifactFilterException
-    {
-        Set<Artifact> result = new LinkedHashSet<>();
-
-        for ( Artifact artifact : artifacts )
-        {
-            if ( isArtifactIncluded( new ArtifactItem( artifact ) ) )
-            {
-                result.add( artifact );
-            }
-        }
-
-        return result;
-    }
-
-    @Override
-    public boolean isArtifactIncluded( ArtifactItem item )
-        throws ArtifactFilterException
+    public boolean test( ArtifactItem item )
+            throws MojoException
     {
         Artifact artifact = item.getArtifact();
 
         boolean overWrite = ( artifact.isSnapshot() && this.overWriteSnapshots )
-            || ( !artifact.isSnapshot() && this.overWriteReleases );
+                || ( !artifact.isSnapshot() && this.overWriteReleases );
 
         handler.setArtifact( artifact );
 
@@ -100,9 +71,9 @@ public class MarkerFileFilter
         {
             return overWrite || !handler.isMarkerSet() || ( overWriteIfNewer && handler.isMarkerOlder( artifact ) );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
-            throw new ArtifactFilterException( e.getMessage(), e );
+            throw new MojoException( e.getMessage(), e );
         }
     }
 

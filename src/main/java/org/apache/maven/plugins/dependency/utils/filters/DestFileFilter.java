@@ -19,77 +19,64 @@ package org.apache.maven.plugins.dependency.utils.filters;
  * under the License.
  */
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
-import org.apache.maven.plugins.dependency.utils.DependencyUtil;
-import org.apache.maven.shared.artifact.filter.collection.AbstractArtifactsFilter;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
-import org.codehaus.plexus.util.StringUtils;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.function.Predicate;
+
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
+import org.apache.maven.plugins.dependency.utils.DependencyUtil;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public class DestFileFilter
-    extends AbstractArtifactsFilter
-    implements ArtifactItemFilter
+        implements Predicate<ArtifactItem>
 {
-    private boolean overWriteReleases;
-
-    private boolean overWriteSnapshots;
-
-    private boolean overWriteIfNewer;
-
-    private boolean useSubDirectoryPerArtifact;
-
-    private boolean useSubDirectoryPerType;
-
     private final boolean useSubDirectoryPerScope;
-
-    private boolean useRepositoryLayout;
-
-    private boolean removeVersion;
-
-    private boolean removeType;
-
-    private boolean removeClassifier;
-
     private final boolean prependGroupId;
-
     private final boolean useBaseVersion;
-
-    private File outputFileDirectory;
+    private boolean overWriteReleases;
+    private boolean overWriteSnapshots;
+    private boolean overWriteIfNewer;
+    private boolean useSubDirectoryPerArtifact;
+    private boolean useSubDirectoryPerType;
+    private boolean useRepositoryLayout;
+    private boolean removeVersion;
+    private boolean removeType;
+    private boolean removeClassifier;
+    private Path outputFileDirectory;
 
     /**
      * @param outputFileDirectory the output directory.
      */
-    public DestFileFilter( File outputFileDirectory )
+    public DestFileFilter( Path outputFileDirectory )
     {
         this( false, false, false, false, false, false, false, false, false, false, outputFileDirectory );
     }
 
     /**
-     * @param overWriteReleases true/false.
-     * @param overWriteSnapshots true/false.
-     * @param overWriteIfNewer true/false.
+     * @param overWriteReleases          true/false.
+     * @param overWriteSnapshots         true/false.
+     * @param overWriteIfNewer           true/false.
      * @param useSubDirectoryPerArtifact true/false.
-     * @param useSubDirectoryPerType true/false.
-     * @param useSubDirectoryPerScope true/false.
-     * @param useRepositoryLayout true/false.
-     * @param removeVersion true/false.
-     * @param prependGroupId true/false.
-     * @param useBaseVersion true/false.
-     * @param outputFileDirectory the output directory.
+     * @param useSubDirectoryPerType     true/false.
+     * @param useSubDirectoryPerScope    true/false.
+     * @param useRepositoryLayout        true/false.
+     * @param removeVersion              true/false.
+     * @param prependGroupId             true/false.
+     * @param useBaseVersion             true/false.
+     * @param outputFileDirectory        the output directory.
      */
     public DestFileFilter( boolean overWriteReleases, boolean overWriteSnapshots, boolean overWriteIfNewer,
                            boolean useSubDirectoryPerArtifact, boolean useSubDirectoryPerType,
                            boolean useSubDirectoryPerScope, boolean useRepositoryLayout, boolean removeVersion,
-                           boolean prependGroupId, boolean useBaseVersion, File outputFileDirectory )
+                           boolean prependGroupId, boolean useBaseVersion, Path outputFileDirectory )
     {
         this.overWriteReleases = overWriteReleases;
         this.overWriteSnapshots = overWriteSnapshots;
@@ -102,27 +89,6 @@ public class DestFileFilter
         this.prependGroupId = prependGroupId;
         this.useBaseVersion = useBaseVersion;
         this.outputFileDirectory = outputFileDirectory;
-    }
-
-    /*
-     * (non-Javadoc)
-     * @see org.apache.mojo.dependency.utils.filters.ArtifactsFilter#filter(java.util.Set,
-     * org.apache.maven.plugin.logging.Log)
-     */
-    @Override
-    public Set<Artifact> filter( Set<Artifact> artifacts )
-        throws ArtifactFilterException
-    {
-        Set<Artifact> result = new LinkedHashSet<>();
-
-        for ( Artifact artifact : artifacts )
-        {
-            if ( isArtifactIncluded( new ArtifactItem( artifact ) ) )
-            {
-                result.add( artifact );
-            }
-        }
-        return result;
     }
 
     /**
@@ -176,7 +142,7 @@ public class DestFileFilter
     /**
      * @return Returns the outputFileDirectory.
      */
-    public File getOutputFileDirectory()
+    public Path getOutputFileDirectory()
     {
         return this.outputFileDirectory;
     }
@@ -184,7 +150,7 @@ public class DestFileFilter
     /**
      * @param outputFileDirectory The outputFileDirectory to set.
      */
-    public void setOutputFileDirectory( File outputFileDirectory )
+    public void setOutputFileDirectory( Path outputFileDirectory )
     {
         this.outputFileDirectory = outputFileDirectory;
     }
@@ -198,11 +164,11 @@ public class DestFileFilter
     }
 
     /**
-     * @param removeType The removeType to set.
+     * @param removeVersion The removeVersion to set.
      */
-    public void setRemoveType( boolean removeType )
+    public void setRemoveVersion( boolean removeVersion )
     {
-        this.removeType = removeType;
+        this.removeVersion = removeVersion;
     }
 
     /**
@@ -214,11 +180,11 @@ public class DestFileFilter
     }
 
     /**
-     * @param removeVersion The removeVersion to set.
+     * @param removeType The removeType to set.
      */
-    public void setRemoveVersion( boolean removeVersion )
+    public void setRemoveType( boolean removeType )
     {
-        this.removeVersion = removeVersion;
+        this.removeType = removeType;
     }
 
     /**
@@ -286,57 +252,58 @@ public class DestFileFilter
     }
 
     @Override
-    public boolean isArtifactIncluded( ArtifactItem item ) throws ArtifactFilterException
+    public boolean test( ArtifactItem item )
     {
         Artifact artifact = item.getArtifact();
 
         boolean overWrite = ( artifact.isSnapshot() && this.overWriteSnapshots )
-            || ( !artifact.isSnapshot() && this.overWriteReleases );
+                || ( !artifact.isSnapshot() && this.overWriteReleases );
 
-        File destFolder = item.getOutputDirectory();
+        Path destFolder = item.getOutputDirectory();
         if ( destFolder == null )
         {
             destFolder =
-                DependencyUtil.getFormattedOutputDirectory( useSubDirectoryPerScope, useSubDirectoryPerType,
-                                                            useSubDirectoryPerArtifact, useRepositoryLayout,
-                                                            removeVersion, removeType, this.outputFileDirectory,
-                                                            artifact );
+                    DependencyUtil.getFormattedOutputDirectory( useSubDirectoryPerScope, useSubDirectoryPerType,
+                            useSubDirectoryPerArtifact, useRepositoryLayout,
+                            removeVersion, removeType, this.outputFileDirectory,
+                            artifact );
         }
 
-        File destFile;
+        Path destFile;
         if ( StringUtils.isEmpty( item.getDestFileName() ) )
         {
             String formattedFileName = DependencyUtil.getFormattedFileName( artifact, removeVersion, prependGroupId,
-                                                                            useBaseVersion, removeClassifier );
-            destFile = new File( destFolder, formattedFileName );
+                    useBaseVersion, removeClassifier );
+            destFile = destFolder.resolve( formattedFileName );
         }
         else
         {
-            destFile = new File( destFolder, item.getDestFileName() );
+            destFile = destFolder.resolve( item.getDestFileName() );
         }
 
-        return overWrite || !destFile.exists() || ( overWriteIfNewer && getLastModified(
-                artifact.getFile() ) > getLastModified( destFile ) );
+        return overWrite || !Files.exists( destFile )
+                || ( overWriteIfNewer
+                && getLastModified( artifact.getPath().get() ).compareTo( getLastModified( destFile ) ) > 0 );
     }
 
     /**
      * Using simply {@code File.getLastModified} will return sometimes a wrong value see JDK bug for details.
-     *
+     * <p>
      * https://bugs.openjdk.java.net/browse/JDK-8177809
      *
      * @param file {@link File}
      * @return the last modification time in milliseconds.
-     * @throws ArtifactFilterException in case of a IO Exception.
+     * @throws MojoException in case of a IO Exception.
      */
-    private long getLastModified( File file ) throws ArtifactFilterException
+    private FileTime getLastModified( Path file ) throws MojoException
     {
         try
         {
-            return Files.getLastModifiedTime( file.toPath() ).toMillis();
+            return Files.getLastModifiedTime( file );
         }
         catch ( IOException e )
         {
-            throw new ArtifactFilterException( "IO Exception", e );
+            throw new MojoException( "IO Exception", e );
         }
     }
 }

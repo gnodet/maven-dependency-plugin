@@ -19,9 +19,9 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
 
 /**
  * <p>
@@ -41,10 +41,10 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @since 3.0
  */
-//CHECKSTYLE_OFF: LineLength
-@Mojo( name = "collect", requiresDependencyCollection = ResolutionScope.TEST, defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true )
-//CHECKSTYLE_ON: LineLength
+@Mojo( name = "collect",
+       requiresDependencyCollection = ResolutionScope.TEST,
+       defaultPhase = LifecyclePhase.GENERATE_SOURCES )
 public class CollectDependenciesMojo
-    extends ResolveDependenciesMojo
+        extends ResolveDependenciesMojo
 {
 }

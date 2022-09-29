@@ -19,6 +19,12 @@ package org.apache.maven.plugins.dependency;
  * under the License.
  */
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.LegacySupport;
 import org.apache.maven.plugin.logging.Log;
@@ -28,12 +34,6 @@ import org.apache.maven.settings.Settings;
 import org.junit.Assert;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 
 public class TestListClassesMojo
         extends AbstractDependencyMojoTestCase

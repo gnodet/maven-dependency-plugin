@@ -24,14 +24,13 @@ import java.io.IOException;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.LegacySupport;
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.testing.AbstractMojoTestCase;
 import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.eclipse.aether.DefaultRepositorySystemSession;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.repository.LocalRepository;
 import org.eclipse.aether.repository.LocalRepositoryManager;
-import org.apache.maven.plugin.testing.AbstractMojoTestCase;
 
 public abstract class AbstractDependencyMojoTestCase
     extends AbstractMojoTestCase
@@ -78,7 +77,7 @@ public abstract class AbstractDependencyMojoTestCase
     }
 
     protected void copyFile( AbstractDependencyMojo mojo, File artifact, File destFile )
-        throws MojoExecutionException
+        throws MojoException
     {
         mojo.copyFile( artifact, destFile );
     }

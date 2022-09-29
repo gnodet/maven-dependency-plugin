@@ -54,9 +54,9 @@ public class ProcessArtifactItemsRequest
     }
 
     /**
-     * @param removeVersion {@link #removeVersion}
-     * @param prependGroupId {@link #prependGroupId}
-     * @param useBaseVersion {@link #useBaseVersion}
+     * @param removeVersion    {@link #removeVersion}
+     * @param prependGroupId   {@link #prependGroupId}
+     * @param useBaseVersion   {@link #useBaseVersion}
      * @param removeClassifier {@link #removeClassifier}
      */
     public ProcessArtifactItemsRequest( boolean removeVersion, boolean prependGroupId, boolean useBaseVersion,

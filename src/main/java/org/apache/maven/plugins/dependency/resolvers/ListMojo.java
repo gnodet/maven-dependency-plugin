@@ -16,11 +16,11 @@ package org.apache.maven.plugins.dependency.resolvers;
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.    
+ * under the License.
  */
 
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.annotations.Mojo;
 
 /**
  * Displays the list of dependencies for this project.
@@ -28,9 +28,9 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * @author <a href="mailto:markhobson@gmail.com">Mark Hobson</a>
  * @since 2.0-alpha-5
  */
-@Mojo( name = "list", requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true )
+@Mojo( name = "list", requiresDependencyResolution = ResolutionScope.TEST )
 public class ListMojo
-    extends ResolveDependenciesMojo
+        extends ResolveDependenciesMojo
 {
     // alias for dependency:resolve
 }

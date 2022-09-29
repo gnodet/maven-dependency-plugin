@@ -10,6 +10,7 @@ org.apache.maven.its.dependency:tree-verbose:jar:1.0-SNAPSHOT
 |  |  +- org.apache.maven:maven-repository-metadata:jar:2.0.6:compile
 |  |  |  \- (org.codehaus.plexus:plexus-utils:jar:1.4.1:compile - omitted for duplicate)
 |  |  +- (org.codehaus.plexus:plexus-utils:jar:1.4.1:compile - omitted for duplicate)
+|  |  +- (org.apache.maven:maven-artifact:jar:2.0.6:compile - omitted for duplicate)
 |  |  +- (org.codehaus.plexus:plexus-container-default:jar:1.0-alpha-9-stable-1:compile - omitted for duplicate)
 |  |  \- org.apache.maven.wagon:wagon-provider-api:jar:1.0-beta-2:compile
 |  |     \- (org.codehaus.plexus:plexus-utils:jar:1.0.4:compile - omitted for conflict with 1.4.1)
@@ -17,16 +18,18 @@ org.apache.maven.its.dependency:tree-verbose:jar:1.0-SNAPSHOT
 |  |  +- (org.codehaus.plexus:plexus-utils:jar:1.4.1:compile - omitted for duplicate)
 |  |  \- (org.codehaus.plexus:plexus-container-default:jar:1.0-alpha-9-stable-1:compile - omitted for duplicate)
 |  +- org.codehaus.plexus:plexus-utils:jar:1.4.1:compile
+|  +- org.apache.maven:maven-artifact:jar:2.0.6:compile
+|  |  \- (org.codehaus.plexus:plexus-utils:jar:1.4.1:compile - omitted for duplicate)
 |  \- org.codehaus.plexus:plexus-container-default:jar:1.0-alpha-9-stable-1:compile
 |     +- junit:junit:jar:3.8.1:compile
 |     +- (org.codehaus.plexus:plexus-utils:jar:1.0.4:compile - omitted for conflict with 1.4.1)
 |     \- classworlds:classworlds:jar:1.1-alpha-2:compile
-+- org.apache.maven:maven-profile:jar:2.0.4:test (scope not updated to compile)
++- org.apache.maven:maven-profile:jar:2.0.4:test
 |  +- (org.apache.maven:maven-model:jar:2.0.5:test - version managed from 2.0.4; scope managed from compile; omitted for conflict with 2.0.7)
-|  +- (org.codehaus.plexus:plexus-utils:jar:1.1:test - omitted for conflict with 1.4.1)
-|  \- (org.codehaus.plexus:plexus-container-default:jar:1.0-alpha-9:test - omitted for conflict with 1.0-alpha-9-stable-1)
+|  +- (org.codehaus.plexus:plexus-utils:jar:1.1:test - scope updated from compile; omitted for conflict with 1.4.1)
+|  \- (org.codehaus.plexus:plexus-container-default:jar:1.0-alpha-9:test - scope updated from compile; omitted for conflict with 1.0-alpha-9-stable-1)
 +- org.apache.maven:maven-model:jar:2.0.7:runtime
-|  \- (org.codehaus.plexus:plexus-utils:jar:1.4.1:runtime - omitted for duplicate)
+|  \- (org.codehaus.plexus:plexus-utils:jar:1.4.1:runtime - scope updated from compile; omitted for duplicate)
 \- org.apache.xmlgraphics:batik-bridge:jar:1.7:compile
    +- org.apache.xmlgraphics:batik-anim:jar:1.7:compile
    |  +- (org.apache.xmlgraphics:batik-awt-util:jar:1.7:compile - omitted for duplicate)

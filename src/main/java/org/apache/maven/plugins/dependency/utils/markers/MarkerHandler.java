@@ -16,11 +16,11 @@ package org.apache.maven.plugins.dependency.utils.markers;
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.    
+ * under the License.
  */
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.plugin.MojoException;
 
 /**
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
@@ -29,31 +29,31 @@ public interface MarkerHandler
 {
     /**
      * @return true/false.
-     * @throws MojoExecutionException in case of an error.
+     * @throws MojoException in case of an error.
      */
     boolean isMarkerSet()
-        throws MojoExecutionException;
+            throws MojoException;
 
     /**
-     * @throws MojoExecutionException in case of an error.
+     * @throws MojoException in case of an error.
      */
     void setMarker()
-        throws MojoExecutionException;
+            throws MojoException;
 
     /**
      * @return true/false.
-     * @throws MojoExecutionException in case of an error.
+     * @throws MojoException in case of an error.
      */
     boolean clearMarker()
-        throws MojoExecutionException;
+            throws MojoException;
 
     /**
      * @param artifact {@link Artifact}
      * @return true/false.
-     * @throws MojoExecutionException in case of an error.
+     * @throws MojoException in case of an error.
      */
     boolean isMarkerOlder( Artifact artifact )
-        throws MojoExecutionException;
+            throws MojoException;
 
     /**
      * @param artifact {@link Artifact}

@@ -23,8 +23,8 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
 import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
 
 /**
  * @author <a href="mailto:vincent.siveton@gmail.com">Vincent Siveton</a>

@@ -19,11 +19,13 @@ package org.apache.maven.plugins.dependency.tree;
  * under the License.
  */
 
-import org.apache.maven.shared.dependency.graph.DependencyNode;
-import org.apache.maven.shared.dependency.graph.traversal.DependencyNodeVisitor;
-
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import org.apache.maven.api.Node;
+import org.apache.maven.api.NodeVisitor;
 
 /**
  * A dependency node visitor that serializes visited nodes to <a href="https://en.wikipedia.org/wiki/DOT_language">DOT
@@ -33,9 +35,11 @@ import java.util.List;
  * @since 2.1
  */
 public class DOTDependencyNodeVisitor
-    extends AbstractSerializingVisitor
-    implements DependencyNodeVisitor
+        extends AbstractSerializingVisitor
+        implements NodeVisitor
 {
+
+    private final Map<Node, Node> parents = new HashMap<>();
 
     /**
      * Constructor.
@@ -51,20 +55,26 @@ public class DOTDependencyNodeVisitor
      * {@inheritDoc}
      */
     @Override
-    public boolean visit( DependencyNode node )
+    public boolean enter( Node node )
     {
-        if ( node.getParent() == null || node.getParent() == node )
+        if ( parents.isEmpty() )
         {
-            writer.write( "digraph \"" + node.toNodeString() + "\" { " + System.lineSeparator() );
+            node.stream().forEach( p -> p.getChildren().forEach( c -> parents.put( c, p ) ) );
+        }
+
+        if ( getParent( node ) == null )
+        {
+            writer.write( "digraph \"" + node.getArtifact().toString() + "\" { " + System.lineSeparator() );
         }
 
         // Generate "currentNode -> Child" lines
 
-        List<DependencyNode> children = node.getChildren();
+        List<Node> children = node.getChildren();
 
-        for ( DependencyNode child : children )
+        for ( Node child : children )
         {
-            writer.println( "\t\"" + node.toNodeString() + "\" -> \"" + child.toNodeString() + "\" ; " );
+            writer.write( "\t\"" + node.getArtifact().toString() + "\" -> \""
+                    + child.getArtifact().toString() + "\" ; " + System.lineSeparator() );
         }
 
         return true;
@@ -74,13 +84,18 @@ public class DOTDependencyNodeVisitor
      * {@inheritDoc}
      */
     @Override
-    public boolean endVisit( DependencyNode node )
+    public boolean leave( Node node )
     {
-        if ( node.getParent() == null || node.getParent() == node )
+        if ( getParent( node ) == null )
         {
             writer.write( " } " );
         }
         return true;
+    }
+
+    private Node getParent( Node child )
+    {
+        return parents.get( child );
     }
 
 }

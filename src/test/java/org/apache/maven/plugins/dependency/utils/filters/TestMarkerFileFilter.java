@@ -25,15 +25,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 import junit.framework.TestCase;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
-import org.apache.maven.plugins.dependency.utils.markers.DefaultFileMarkerHandler;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugin.testing.SilentLog;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
+import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
+import org.apache.maven.plugins.dependency.utils.markers.DefaultFileMarkerHandler;
 
 /**
  * @author brianf
@@ -84,7 +81,7 @@ public class TestMarkerFileFilter
     }
 
     public void testMarkerSnapshots()
-        throws ArtifactFilterException, MojoExecutionException, IOException
+        throws ArtifactFilterException, MojoException, IOException
 
     {
         DefaultFileMarkerHandler handler = new DefaultFileMarkerHandler( fact.getSnapshotArtifact(), outputFolder );
@@ -104,7 +101,7 @@ public class TestMarkerFileFilter
     }
 
     public void testMarkerRelease()
-        throws IOException, ArtifactFilterException, MojoExecutionException
+        throws IOException, ArtifactFilterException, MojoException
     {
         DefaultFileMarkerHandler handler = new DefaultFileMarkerHandler( fact.getReleaseArtifact(), outputFolder );
         handler.setMarker();
@@ -124,7 +121,7 @@ public class TestMarkerFileFilter
     }
 
     public void testMarkerTimestamp()
-        throws IOException, MojoExecutionException, ArtifactFilterException
+        throws IOException, MojoException, ArtifactFilterException
     {
         // filter includes release artifact because no marker present
         // filter includes snapshot artifact because it is newer than marker

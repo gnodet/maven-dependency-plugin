@@ -19,9 +19,9 @@ package org.apache.maven.plugins.dependency.fromDependencies;
  * under the License.
  */
 
-import org.apache.maven.plugins.annotations.Parameter;
+import java.nio.file.Path;
 
-import java.io.File;
+import org.apache.maven.api.plugin.annotations.Parameter;
 
 /**
  * Abstract Parent class used by mojos that get Artifact information from the project dependencies.
@@ -29,7 +29,7 @@ import java.io.File;
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public abstract class AbstractFromDependenciesMojo
-    extends AbstractDependencyFilterMojo
+        extends AbstractDependencyFilterMojo
 {
     /**
      * Output location.
@@ -37,7 +37,7 @@ public abstract class AbstractFromDependenciesMojo
      * @since 1.0
      */
     @Parameter( property = "outputDirectory", defaultValue = "${project.build.directory}/dependency" )
-    protected File outputDirectory;
+    protected Path outputDirectory;
 
     /**
      * Strip artifact version during copy
@@ -66,7 +66,7 @@ public abstract class AbstractFromDependenciesMojo
      * <p>
      * example:
      * </p>
-     * 
+     *
      * <pre>
      *   /outputDirectory/junit/junit/3.8.1/junit-3.8.1.jar
      * </pre>
@@ -112,7 +112,7 @@ public abstract class AbstractFromDependenciesMojo
     /**
      * @return Returns the outputDirectory.
      */
-    public File getOutputDirectory()
+    public Path getOutputDirectory()
     {
         return this.outputDirectory;
     }
@@ -120,7 +120,7 @@ public abstract class AbstractFromDependenciesMojo
     /**
      * @param theOutputDirectory The outputDirectory to set.
      */
-    public void setOutputDirectory( File theOutputDirectory )
+    public void setOutputDirectory( Path theOutputDirectory )
     {
         this.outputDirectory = theOutputDirectory;
     }

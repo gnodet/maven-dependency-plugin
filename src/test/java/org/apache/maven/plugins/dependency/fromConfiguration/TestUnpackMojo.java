@@ -19,17 +19,6 @@ package org.apache.maven.plugins.dependency.fromConfiguration;
  * under the License.    
  */
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.versioning.VersionRange;
-import org.apache.maven.execution.MavenSession;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.plugin.LegacySupport;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
-import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
-import org.apache.maven.plugins.dependency.utils.markers.UnpackFileMarkerHandler;
-import org.apache.maven.project.MavenProject;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,6 +26,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.versioning.VersionRange;
+import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.plugin.LegacySupport;
+import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
+import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
+import org.apache.maven.plugins.dependency.utils.markers.UnpackFileMarkerHandler;
+import org.apache.maven.project.MavenProject;
 
 public class TestUnpackMojo
     extends AbstractDependencyMojoTestCase
@@ -78,7 +77,7 @@ public class TestUnpackMojo
     }
 
     public ArtifactItem getSingleArtifactItem( boolean removeVersion )
-        throws MojoExecutionException
+        throws MojoException
     {
         List<ArtifactItem> list = mojo.getProcessedArtifactItems( removeVersion );
         return list.get( 0 );
@@ -123,7 +122,7 @@ public class TestUnpackMojo
         {
             assertEquals( val, handle.isMarkerSet() );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             fail( e.getLongMessage() );
         }
@@ -198,7 +197,7 @@ public class TestUnpackMojo
             mojo.execute();
             fail( "Expected Exception Here." );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             // caught the expected exception.
         }
@@ -223,7 +222,7 @@ public class TestUnpackMojo
             mojo.execute();
             fail( "Expected Exception Here." );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             // caught the expected exception.
         }
@@ -421,7 +420,7 @@ public class TestUnpackMojo
             mojo.execute();
             fail( "ExpectedException" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             assertEquals( "Unable to find/resolve artifact.", e.getMessage() );
         }
@@ -434,7 +433,7 @@ public class TestUnpackMojo
             mojo.getProcessedArtifactItems( false );
             fail( "Expected Exception" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             assertEquals( "There are no artifactItems configured.", e.getMessage() );
         }

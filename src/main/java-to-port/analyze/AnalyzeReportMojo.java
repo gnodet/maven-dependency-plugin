@@ -19,21 +19,37 @@ package org.apache.maven.plugins.dependency.analyze;
  * under the License.
  */
 
-import org.apache.maven.doxia.sink.Sink;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.Execute;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.apache.maven.reporting.AbstractMavenReport;
-import org.apache.maven.reporting.MavenReportException;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalysis;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzer;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
-
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.ResourceBundle;
+
+import org.apache.maven.api.Project;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Component;
+import org.apache.maven.api.plugin.annotations.Execute;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.doxia.sink.Sink;
+import org.apache.maven.doxia.site.decoration.DecorationModel;
+import org.apache.maven.doxia.siterenderer.RendererException;
+import org.apache.maven.doxia.siterenderer.RenderingContext;
+import org.apache.maven.doxia.siterenderer.SiteRenderingContext;
+import org.apache.maven.doxia.siterenderer.sink.SiteRendererSink;
+import org.apache.maven.reporting.AbstractMavenReport;
+import org.apache.maven.reporting.MavenMultiPageReport;
+import org.apache.maven.reporting.MavenReport;
+import org.apache.maven.reporting.MavenReportException;
 
 /**
  * Analyzes the dependencies of this project and produces a report that summarizes which are: used and declared; used
@@ -41,12 +57,44 @@ import java.util.ResourceBundle;
  *
  * @since 2.0-alpha-5
  */
-@Mojo( name = "analyze-report", requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true )
+@Mojo( name = "analyze-report", requiresDependencyResolution = ResolutionScope.TEST )
 @Execute( phase = LifecyclePhase.TEST_COMPILE )
 public class AnalyzeReportMojo
-    extends AbstractMavenReport
+        implements org.apache.maven.api.plugin.Mojo, MavenMultiPageReport
 {
     // fields -----------------------------------------------------------------
+
+    /**
+     * The output directory for the report. Note that this parameter is only evaluated if the goal is run directly from
+     * the command line. If the goal is run indirectly as part of a site generation, the output directory configured in
+     * the Maven Site Plugin is used instead.
+     */
+    @Parameter( defaultValue = "${project.reporting.outputDirectory}", readonly = true, required = true )
+    protected Path outputDirectory;
+
+    /**
+     * The Maven Project.
+     */
+    @Parameter( defaultValue = "${project}", readonly = true, required = true )
+    protected Project project;
+
+    /**
+     * Specifies the input encoding.
+     */
+    @Parameter( property = "encoding", defaultValue = "${project.build.sourceEncoding}", readonly = true )
+    private String inputEncoding;
+
+    /**
+     * Specifies the output encoding.
+     */
+    @Parameter( property = "outputEncoding", defaultValue = "${project.reporting.outputEncoding}", readonly = true )
+    private String outputEncoding;
+
+    /**
+     * Doxia Site Renderer component.
+     */
+    @Component
+    protected Renderer siteRenderer;
 
     /**
      * The Maven project dependency analyzer to use.
@@ -79,14 +127,38 @@ public class AnalyzeReportMojo
     @Parameter( property = "mdep.analyze.skip", defaultValue = "false" )
     private boolean skip;
 
+    @Component
+    private Log log;
+
     // Mojo methods -----------------------------------------------------------
 
     /*
      * @see org.apache.maven.plugin.Mojo#execute()
      */
     @Override
+    public void execute()
+            throws MojoException
+    {
+        if ( skip )
+        {
+            log.info( "Skipping JXR." );
+            return;
+        }
+
+        Locale locale = Locale.getDefault();
+        try
+        {
+            executeReport( locale );
+        }
+        catch ( MavenReportException e )
+        {
+            throw new MojoException( "Error generating JXR report", e );
+        }
+    }
+
+
     public void executeReport( Locale locale )
-        throws MavenReportException
+            throws MavenReportException
     {
         // Step 1: Analyze the project
         ProjectDependencyAnalysis analysis;
@@ -127,14 +199,14 @@ public class AnalyzeReportMojo
     {
         if ( skip )
         {
-            getLog().info( "Skipping plugin execution" );
+            log.info( "Skipping plugin execution" );
             return false;
         }
 
         // Step 0: Checking pom availability
         if ( "pom".equals( project.getPackaging() ) )
         {
-            getLog().info( "Skipping pom project" );
+            log.info( "Skipping pom project" );
             return false;
         }
 

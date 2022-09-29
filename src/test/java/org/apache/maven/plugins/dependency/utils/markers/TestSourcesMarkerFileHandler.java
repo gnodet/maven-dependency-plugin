@@ -26,16 +26,14 @@ import java.util.List;
 import java.util.Random;
 
 import junit.framework.TestCase;
-
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DefaultArtifact;
 import org.apache.maven.artifact.handler.ArtifactHandler;
 import org.apache.maven.artifact.handler.DefaultArtifactHandler;
 import org.apache.maven.artifact.versioning.VersionRange;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.dependency.testUtils.stubs.StubSourcesFileMarkerHandler;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugin.testing.SilentLog;
+import org.apache.maven.plugins.dependency.testUtils.stubs.StubSourcesFileMarkerHandler;
 
 /**
  * @author brianf
@@ -78,7 +76,7 @@ public class TestSourcesMarkerFileHandler
     }
 
     public void testSetMarkerResolved()
-        throws MojoExecutionException
+        throws MojoException
     {
         DefaultFileMarkerHandler handler = new SourcesFileMarkerHandler( artifacts.get( 0 ), this.outputFolder, true );
         assertFalse( handler.isMarkerSet() );
@@ -98,7 +96,7 @@ public class TestSourcesMarkerFileHandler
     }
 
     public void testSetMarkerUnresolved()
-        throws MojoExecutionException
+        throws MojoException
     {
         DefaultFileMarkerHandler handler = new SourcesFileMarkerHandler( artifacts.get( 0 ), this.outputFolder, false );
         assertFalse( handler.isMarkerSet() );
@@ -118,7 +116,7 @@ public class TestSourcesMarkerFileHandler
     }
 
     public void testBothMarkers()
-        throws MojoExecutionException
+        throws MojoException
     {
         DefaultFileMarkerHandler handler = new SourcesFileMarkerHandler( artifacts.get( 1 ), this.outputFolder, true );
         DefaultFileMarkerHandler handler2 =
@@ -136,7 +134,7 @@ public class TestSourcesMarkerFileHandler
     }
 
     public void testMarkerFile()
-        throws MojoExecutionException, IOException
+        throws MojoException, IOException
     {
         DefaultFileMarkerHandler handler = new SourcesFileMarkerHandler( artifacts.get( 0 ), this.outputFolder, true );
         DefaultFileMarkerHandler handler2 =
@@ -194,19 +192,19 @@ public class TestSourcesMarkerFileHandler
     }
 
     public void testMarkerTimeStampResolved()
-        throws MojoExecutionException, IOException, InterruptedException
+        throws MojoException, IOException, InterruptedException
     {
         doTestMarkerTimeStamp( true );
     }
 
     public void testMarkerTimeStampUnResolved()
-        throws MojoExecutionException, IOException, InterruptedException
+        throws MojoException, IOException, InterruptedException
     {
         doTestMarkerTimeStamp( false );
     }
 
     public void doTestMarkerTimeStamp( boolean resolved )
-        throws MojoExecutionException, IOException, InterruptedException
+        throws MojoException, IOException, InterruptedException
     {
         File theFile = new File( outputFolder, "theFile.jar" );
         outputFolder.mkdirs();
@@ -252,7 +250,7 @@ public class TestSourcesMarkerFileHandler
             handler.setMarker();
             fail( "Expected an Exception here" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
         }
     }
@@ -266,7 +264,7 @@ public class TestSourcesMarkerFileHandler
     }
 
     public void testNullParent()
-        throws MojoExecutionException
+        throws MojoException
     {
         // the parent isn't set so this will create the marker in the local
         // folder. We must clear the
@@ -280,7 +278,7 @@ public class TestSourcesMarkerFileHandler
     }
 
     public void testNullParentResolved()
-        throws MojoExecutionException
+        throws MojoException
     {
         // the parent isn't set so this will create the marker in the local
         // folder. We must clear the

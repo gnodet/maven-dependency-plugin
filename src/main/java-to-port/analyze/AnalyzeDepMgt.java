@@ -19,26 +19,30 @@ package org.apache.maven.plugins.dependency.analyze;
  * under the License.
  */
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.DependencyManagement;
-import org.apache.maven.model.Exclusion;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.model.Dependency;
+import org.apache.maven.api.model.DependencyManagement;
+import org.apache.maven.api.model.Exclusion;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Component;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.ProjectManager;
 import org.codehaus.plexus.util.StringUtils;
+
+import static org.apache.maven.plugins.dependency.utils.DependencyUtil.getManagementKey;
 
 /**
  * This mojo looks at the dependencies after final resolution and looks for mismatches in your dependencyManagement
@@ -48,9 +52,9 @@ import org.codehaus.plexus.util.StringUtils;
  * @author <a href="mailto:brianefox@gmail.com">Brian Fox</a>
  * @since 2.0-alpha-3
  */
-@Mojo( name = "analyze-dep-mgt", requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true )
+@Mojo( name = "analyze-dep-mgt", requiresDependencyResolution = ResolutionScope.TEST )
 public class AnalyzeDepMgt
-    extends AbstractMojo
+        implements org.apache.maven.api.plugin.Mojo
 {
     // fields -----------------------------------------------------------------
 
@@ -58,7 +62,7 @@ public class AnalyzeDepMgt
      *
      */
     @Parameter( defaultValue = "${project}", readonly = true, required = true )
-    private MavenProject project;
+    private Project project;
 
     /**
      * Fail the build if a problem is detected.
@@ -80,6 +84,12 @@ public class AnalyzeDepMgt
     @Parameter( property = "mdep.analyze.skip", defaultValue = "false" )
     private boolean skip;
 
+    @Component
+    private Log log;
+
+    @Component
+    private Session session;
+
     // Mojo methods -----------------------------------------------------------
 
     /*
@@ -87,7 +97,7 @@ public class AnalyzeDepMgt
      */
     @Override
     public void execute()
-        throws MojoExecutionException, MojoFailureException
+            throws MojoException
     {
         if ( skip )
         {
@@ -101,7 +111,7 @@ public class AnalyzeDepMgt
             if ( this.failBuild )
 
             {
-                throw new MojoExecutionException( "Found Dependency errors." );
+                throw new MojoException( "Found Dependency errors." );
             }
             else
             {
@@ -110,14 +120,19 @@ public class AnalyzeDepMgt
         }
     }
 
+    public Log getLog()
+    {
+        return log;
+    }
+
     /**
      * Does the work of checking the DependencyManagement Section.
      *
      * @return true if errors are found.
-     * @throws MojoExecutionException
+     * @throws MojoException
      */
     private boolean checkDependencyManagement()
-        throws MojoExecutionException
+            throws MojoException
     {
         boolean foundError = false;
 
@@ -125,7 +140,7 @@ public class AnalyzeDepMgt
 
         List<Dependency> depMgtDependencies = null;
 
-        DependencyManagement depMgt = project.getDependencyManagement();
+        DependencyManagement depMgt = project.getModel().getDependencyManagement();
         if ( depMgt != null )
         {
             depMgtDependencies = depMgt.getDependencies();
@@ -138,14 +153,15 @@ public class AnalyzeDepMgt
             Map<String, Exclusion> exclusions = new HashMap<>();
             for ( Dependency depMgtDependency : depMgtDependencies )
             {
-                depMgtMap.put( depMgtDependency.getManagementKey(), depMgtDependency );
+                depMgtMap.put( getManagementKey( depMgtDependency ), depMgtDependency );
 
                 // now put all the exclusions into a map for quick lookup
                 exclusions.putAll( addExclusions( depMgtDependency.getExclusions() ) );
             }
 
             // get dependencies for the project (including transitive)
-            Set<Artifact> allDependencyArtifacts = new LinkedHashSet<>( project.getArtifacts() );
+            List<Artifact> allDependencyArtifacts = session.getService( ProjectManager.class )
+                    .getResolvedDependencies( getProject(), ResolutionScope.TEST );
 
             // don't warn if a dependency that is directly listed overrides
             // depMgt. That's ok.
@@ -161,8 +177,8 @@ public class AnalyzeDepMgt
             for ( Artifact exclusion : exclusionErrors )
             {
                 getLog().info( StringUtils.stripEnd( getArtifactManagementKey( exclusion ), ":" )
-                    + " was excluded in DepMgt, but version " + exclusion.getVersion()
-                    + " has been found in the dependency tree." );
+                        + " was excluded in DepMgt, but version " + exclusion.getVersion()
+                        + " has been found in the dependency tree." );
                 foundError = true;
             }
 
@@ -192,7 +208,7 @@ public class AnalyzeDepMgt
      * @param exclusionList to be added to the map.
      * @return a map of the exclusions using the Dependency ManagementKey as the keyset.
      */
-    public Map<String, Exclusion> addExclusions( List<Exclusion> exclusionList )
+    public Map<String, Exclusion> addExclusions( Collection<Exclusion> exclusionList )
     {
         if ( exclusionList != null )
         {
@@ -205,16 +221,17 @@ public class AnalyzeDepMgt
     /**
      * Returns a List of the artifacts that should have been excluded, but were found in the dependency tree.
      *
-     * @param exclusions a map of the DependencyManagement exclusions, with the ManagementKey as the key and Dependency
-     *            as the value.
+     * @param exclusions             a map of the DependencyManagement exclusions, with the ManagementKey as the key and
+     *                               Dependency
+     *                               as the value.
      * @param allDependencyArtifacts resolved artifacts to be compared.
      * @return list of artifacts that should have been excluded.
      */
-    public List<Artifact> getExclusionErrors( Map<String, Exclusion> exclusions, Set<Artifact> allDependencyArtifacts )
+    public List<Artifact> getExclusionErrors( Map<String, Exclusion> exclusions, List<Artifact> allDependencyArtifacts )
     {
         return allDependencyArtifacts.stream()
                 .filter( artifact -> exclusions.containsKey( getExclusionKey( artifact ) ) )
-                .collect( Collectors.toList( ) );
+                .collect( Collectors.toList() );
     }
 
     /**
@@ -238,12 +255,12 @@ public class AnalyzeDepMgt
     /**
      * Calculate the mismatches between the DependencyManagement and resolved artifacts
      *
-     * @param depMgtMap contains the Dependency.GetManagementKey as the keyset for quick lookup.
+     * @param depMgtMap              contains the Dependency.GetManagementKey as the keyset for quick lookup.
      * @param allDependencyArtifacts contains the set of all artifacts to compare.
      * @return a map containing the resolved artifact as the key and the listed dependency as the value.
      */
     public Map<Artifact, Dependency> getMismatch( Map<String, Dependency> depMgtMap,
-                                                  Set<Artifact> allDependencyArtifacts )
+                                                  List<Artifact> allDependencyArtifacts )
     {
         Map<Artifact, Dependency> mismatchMap = new HashMap<>();
 
@@ -256,7 +273,7 @@ public class AnalyzeDepMgt
                 dependencyArtifact.isSnapshot();
 
                 if ( depFromDepMgt.getVersion() != null
-                    && !depFromDepMgt.getVersion().equals( dependencyArtifact.getBaseVersion() ) )
+                        && !depFromDepMgt.getVersion().equals( dependencyArtifact.getVersion().asString() ) )
                 {
                     mismatchMap.put( dependencyArtifact, depFromDepMgt );
                 }
@@ -269,22 +286,22 @@ public class AnalyzeDepMgt
      * This function displays the log to the screen showing the versions and information about the artifacts that don't
      * match.
      *
-     * @param dependencyArtifact the artifact that was resolved.
+     * @param dependencyArtifact   the artifact that was resolved.
      * @param dependencyFromDepMgt the dependency listed in the DependencyManagement section.
-     * @throws MojoExecutionException in case of errors.
+     * @throws MojoException in case of errors.
      */
     public void logMismatch( Artifact dependencyArtifact, Dependency dependencyFromDepMgt )
-        throws MojoExecutionException
+            throws MojoException
     {
         if ( dependencyArtifact == null || dependencyFromDepMgt == null )
         {
-            throw new MojoExecutionException( "Invalid params: Artifact: " + dependencyArtifact + " Dependency: "
-                + dependencyFromDepMgt );
+            throw new MojoException( "Invalid params: Artifact: " + dependencyArtifact + " Dependency: "
+                    + dependencyFromDepMgt );
         }
 
-        getLog().info( "\tDependency: " + StringUtils.stripEnd( dependencyFromDepMgt.getManagementKey(), ":" ) );
+        getLog().info( "\tDependency: " + StringUtils.stripEnd( getManagementKey( dependencyFromDepMgt ), ":" ) );
         getLog().info( "\t\tDepMgt  : " + dependencyFromDepMgt.getVersion() );
-        getLog().info( "\t\tResolved: " + dependencyArtifact.getBaseVersion() );
+        getLog().info( "\t\tResolved: " + dependencyArtifact.getVersion() );
     }
 
     /**
@@ -296,7 +313,7 @@ public class AnalyzeDepMgt
     public String getArtifactManagementKey( Artifact artifact )
     {
         return artifact.getGroupId() + ":" + artifact.getArtifactId() + ":" + artifact.getType()
-            + ( ( artifact.getClassifier() != null ) ? ":" + artifact.getClassifier() : "" );
+                + ( ( artifact.getClassifier() != null ) ? ":" + artifact.getClassifier() : "" );
     }
 
     /**
@@ -318,7 +335,7 @@ public class AnalyzeDepMgt
     /**
      * @return the project
      */
-    protected final MavenProject getProject()
+    protected final Project getProject()
     {
         return this.project;
     }
@@ -326,7 +343,7 @@ public class AnalyzeDepMgt
     /**
      * @param theProject the project to set
      */
-    public void setProject( MavenProject theProject )
+    public void setProject( Project theProject )
     {
         this.project = theProject;
     }

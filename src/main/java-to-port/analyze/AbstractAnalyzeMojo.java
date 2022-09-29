@@ -19,8 +19,9 @@ package org.apache.maven.plugins.dependency.analyze;
  * under the License.
  */
 
-import java.io.File;
 import java.io.StringWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -30,22 +31,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.shared.artifact.filter.StrictPatternExcludesArtifactFilter;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalysis;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzer;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
-import org.codehaus.plexus.PlexusConstants;
-import org.codehaus.plexus.PlexusContainer;
-import org.codehaus.plexus.context.Context;
-import org.codehaus.plexus.personality.plexus.lifecycle.phase.Contextualizable;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.api.plugin.Mojo;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Component;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.Lookup;
+import org.apache.maven.api.services.LookupException;
 import org.codehaus.plexus.util.xml.PrettyPrintXMLWriter;
 
 /**
@@ -56,22 +50,15 @@ import org.codehaus.plexus.util.xml.PrettyPrintXMLWriter;
  * @since 2.0-alpha-5
  */
 public abstract class AbstractAnalyzeMojo
-    extends AbstractMojo
-    implements Contextualizable
+        implements Mojo
 {
     // fields -----------------------------------------------------------------
-
-    /**
-     * The plexus context to look-up the right {@link ProjectDependencyAnalyzer} implementation depending on the mojo
-     * configuration.
-     */
-    private Context context;
 
     /**
      * The Maven project to analyze.
      */
     @Parameter( defaultValue = "${project}", readonly = true, required = true )
-    private MavenProject project;
+    private Project project;
 
     /**
      * Specify the project dependency analyzer to use (plexus component role-hint). By default,
@@ -153,7 +140,7 @@ public abstract class AbstractAnalyzeMojo
      * @since 2.0-alpha-5
      */
     @Parameter( defaultValue = "${basedir}", readonly = true )
-    private File baseDir;
+    private Path baseDir;
 
     /**
      * Target folder
@@ -161,7 +148,7 @@ public abstract class AbstractAnalyzeMojo
      * @since 2.0-alpha-5
      */
     @Parameter( defaultValue = "${project.build.directory}", readonly = true )
-    private File outputDirectory;
+    private Path outputDirectory;
 
     /**
      * Force dependencies as used, to override incomplete result caused by bytecode-level analysis. Dependency format is
@@ -187,7 +174,7 @@ public abstract class AbstractAnalyzeMojo
      * <pre>
      * [groupId]:[artifactId]:[type]:[version]
      * </pre>
-     *
+     * <p>
      * where each pattern segment is optional and supports full and partial <code>*</code> wildcards. An empty pattern
      * segment is treated as an implicit wildcard. *
      * <p>
@@ -206,7 +193,7 @@ public abstract class AbstractAnalyzeMojo
      * <pre>
      * [groupId]:[artifactId]:[type]:[version]
      * </pre>
-     *
+     * <p>
      * where each pattern segment is optional and supports full and partial <code>*</code> wildcards. An empty pattern
      * segment is treated as an implicit wildcard. *
      * <p>
@@ -225,7 +212,7 @@ public abstract class AbstractAnalyzeMojo
      * <pre>
      * [groupId]:[artifactId]:[type]:[version]
      * </pre>
-     *
+     * <p>
      * where each pattern segment is optional and supports full and partial <code>*</code> wildcards. An empty pattern
      * segment is treated as an implicit wildcard. *
      * <p>
@@ -245,7 +232,7 @@ public abstract class AbstractAnalyzeMojo
      * <pre>
      * [groupId]:[artifactId]:[type]:[version]
      * </pre>
-     *
+     * <p>
      * where each pattern segment is optional and supports full and partial <code>*</code> wildcards. An empty pattern
      * segment is treated as an implicit wildcard. *
      * <p>
@@ -270,6 +257,12 @@ public abstract class AbstractAnalyzeMojo
     @Parameter
     private List<String> ignoredPackagings = Arrays.asList( "pom", "ear" );
 
+    @Component
+    private Log log;
+
+    @Component
+    private Lookup lookup;
+
     // Mojo methods -----------------------------------------------------------
 
     /*
@@ -277,9 +270,9 @@ public abstract class AbstractAnalyzeMojo
      */
     @Override
     public void execute()
-        throws MojoExecutionException, MojoFailureException
+            throws MojoException
     {
-        if ( isSkip() )
+        if ( skip )
         {
             getLog().info( "Skipping plugin execution" );
             return;
@@ -291,7 +284,7 @@ public abstract class AbstractAnalyzeMojo
             return;
         }
 
-        if ( outputDirectory == null || !outputDirectory.exists() )
+        if ( outputDirectory == null || !Files.exists( outputDirectory ) )
         {
             getLog().info( "Skipping project with no build directory" );
             return;
@@ -301,47 +294,37 @@ public abstract class AbstractAnalyzeMojo
 
         if ( warning && failOnWarning )
         {
-            throw new MojoExecutionException( "Dependency problems found" );
+            throw new MojoException( "Dependency problems found" );
         }
+    }
+
+    public Log getLog()
+    {
+        return log;
     }
 
     /**
      * @return {@link ProjectDependencyAnalyzer}
-     * @throws MojoExecutionException in case of an error.
+     * @throws MojoException in case of an error.
      */
     protected ProjectDependencyAnalyzer createProjectDependencyAnalyzer()
-        throws MojoExecutionException
+            throws MojoException
     {
         try
         {
-            final PlexusContainer container = (PlexusContainer) context.get( PlexusConstants.PLEXUS_KEY );
-            return container.lookup( ProjectDependencyAnalyzer.class, analyzer );
+            return lookup.lookup( ProjectDependencyAnalyzer.class, analyzer );
         }
-        catch ( Exception exception )
+        catch ( LookupException exception )
         {
-            throw new MojoExecutionException( "Failed to instantiate ProjectDependencyAnalyser"
-                + " / role-hint " + analyzer, exception );
+            throw new MojoException( "Failed to instantiate ProjectDependencyAnalyser"
+                    + " named " + analyzer, exception );
         }
-    }
-
-    @Override
-    public void contextualize( Context theContext )
-    {
-        this.context = theContext;
-    }
-
-    /**
-     * @return {@link #skip}
-     */
-    protected final boolean isSkip()
-    {
-        return skip;
     }
 
     // private methods --------------------------------------------------------
 
     private boolean checkDependencies()
-        throws MojoExecutionException
+            throws MojoException
     {
         ProjectDependencyAnalysis analysis;
         try
@@ -355,7 +338,7 @@ public abstract class AbstractAnalyzeMojo
         }
         catch ( ProjectDependencyAnalyzerException exception )
         {
-            throw new MojoExecutionException( "Cannot analyze dependencies", exception );
+            throw new MojoException( "Cannot analyze dependencies", exception );
         }
 
         if ( ignoreNonCompile )
@@ -387,7 +370,7 @@ public abstract class AbstractAnalyzeMojo
 
         if ( ignoreAllNonTestScoped )
         {
-            ignoredNonTestScope.addAll( filterDependencies ( nonTestScope, new String [] { "*" } ) );
+            ignoredNonTestScope.addAll( filterDependencies( nonTestScope, new String[] {"*"} ) );
         }
         else
         {
@@ -581,7 +564,7 @@ public abstract class AbstractAnalyzeMojo
                 writer.writeText( artifact.getArtifactId() );
                 writer.endElement();
                 writer.startElement( "version" );
-                writer.writeText( artifact.getBaseVersion() );
+                writer.writeText( artifact.getVersion().asString() );
                 if ( !StringUtils.isBlank( artifact.getClassifier() ) )
                 {
                     writer.startElement( "classifier" );
@@ -608,7 +591,7 @@ public abstract class AbstractAnalyzeMojo
         if ( !artifacts.isEmpty() )
         {
             getLog().info( "Missing dependencies: " );
-            String pomFile = baseDir.getAbsolutePath() + File.separatorChar + "pom.xml";
+            String pomFile = baseDir.resolve( "pom.xml" ).toAbsolutePath().toString();
             StringBuilder buf = new StringBuilder();
 
             for ( Artifact artifact : artifacts )
@@ -618,17 +601,17 @@ public abstract class AbstractAnalyzeMojo
 
                 //CHECKSTYLE_OFF: LineLength
                 buf.append( scriptableFlag )
-                   .append( ":" )
-                   .append( pomFile )
-                   .append( ":" )
-                   .append( artifact.getDependencyConflictId() )
-                   .append( ":" )
-                   .append( artifact.getClassifier() )
-                   .append( ":" )
-                   .append( artifact.getBaseVersion() )
-                   .append( ":" )
-                   .append( artifact.getScope() )
-                   .append( System.lineSeparator() );
+                        .append( ":" )
+                        .append( pomFile )
+                        .append( ":" )
+                        .append( artifact.getDependencyConflictId() )
+                        .append( ":" )
+                        .append( artifact.getClassifier() )
+                        .append( ":" )
+                        .append( artifact.getBaseVersion() )
+                        .append( ":" )
+                        .append( artifact.getScope() )
+                        .append( System.lineSeparator() );
                 //CHECKSTYLE_ON: LineLength
             }
             getLog().info( System.lineSeparator() + buf );

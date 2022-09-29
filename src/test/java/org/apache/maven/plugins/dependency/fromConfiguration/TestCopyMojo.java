@@ -30,7 +30,6 @@ import org.apache.maven.artifact.versioning.VersionRange;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.LegacySupport;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
 import org.apache.maven.project.MavenProject;
@@ -62,7 +61,7 @@ public class TestCopyMojo
     }
 
     private ArtifactItem getSingleArtifactItem( boolean removeVersion, boolean useBaseVersion )
-        throws MojoExecutionException
+        throws MojoException
     {
         List<ArtifactItem> list =
             mojo.getProcessedArtifactItems( new ProcessArtifactItemsRequest( removeVersion, false, useBaseVersion,
@@ -311,7 +310,7 @@ public class TestCopyMojo
             mojo.execute();
             fail( "Expected Exception Here." );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             // caught the expected exception.
         }
@@ -576,7 +575,7 @@ public class TestCopyMojo
             mojo.execute();
             fail( "ExpectedException" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             assertEquals( "Unable to find/resolve artifact.", e.getMessage() );
         }
@@ -589,7 +588,7 @@ public class TestCopyMojo
             mojo.getProcessedArtifactItems( new ProcessArtifactItemsRequest( false, false, false, false ) );
             fail( "Expected Exception" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             assertEquals( "There are no artifactItems configured.", e.getMessage() );
         }

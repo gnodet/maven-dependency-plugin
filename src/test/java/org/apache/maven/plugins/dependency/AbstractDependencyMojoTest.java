@@ -19,14 +19,14 @@ package org.apache.maven.plugins.dependency;
  * under the License.
  */
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
 import junit.framework.TestCase;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.ProjectBuildingRequest;
-
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.apache.maven.plugins.dependency.AbstractDependencyMojoTest.ConcreteDependencyMojo.createConcreteDependencyMojoWithArtifactRepositories;
 import static org.apache.maven.plugins.dependency.AbstractDependencyMojoTest.ConcreteDependencyMojo.createConcreteDependencyMojoWithPluginRepositories;

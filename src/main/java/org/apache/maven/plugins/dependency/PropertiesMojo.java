@@ -19,16 +19,20 @@ package org.apache.maven.plugins.dependency;
  * under the License.
  */
 
-import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.apache.maven.project.MavenProject;
+import java.util.List;
+
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Component;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.ProjectManager;
 
 /**
  * Goal that sets a property pointing to the artifact file for each project dependency. For each dependency (direct and
@@ -39,17 +43,21 @@ import org.apache.maven.project.MavenProject;
  * @since 2.2
  */
 //CHECKSTYLE_OFF: LineLength
-@Mojo( name = "properties", requiresDependencyResolution = ResolutionScope.TEST, defaultPhase = LifecyclePhase.INITIALIZE, threadSafe = true )
+@Mojo( name = "properties", requiresDependencyResolution = ResolutionScope.TEST,
+       defaultPhase = LifecyclePhase.INITIALIZE )
 //CHECKSTYLE_ON: LineLength
 public class PropertiesMojo
-    extends AbstractMojo
+        implements org.apache.maven.api.plugin.Mojo
 {
+
+    @Parameter( defaultValue = "${session}", required = true, readonly = true )
+    private Session session;
 
     /**
      * The current Maven project
      */
     @Parameter( defaultValue = "${project}", readonly = true, required = true )
-    private MavenProject project;
+    private Project project;
 
     /**
      * Skip plugin execution completely.
@@ -59,35 +67,36 @@ public class PropertiesMojo
     @Parameter( property = "mdep.skip", defaultValue = "false" )
     private boolean skip;
 
+    @Component
+    private Log log;
+
     /**
      * Main entry into mojo. Gets the list of dependencies and iterates through setting a property for each artifact.
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      */
     @Override
     public void execute()
-        throws MojoExecutionException
+            throws MojoException
     {
-        if ( isSkip() )
+        if ( skip )
         {
-            getLog().info( "Skipping plugin execution" );
+            log.info( "Skipping plugin execution" );
             return;
         }
 
-        Set<Artifact> artifacts = project.getArtifacts();
+        ProjectManager projectManager = session.getService( ProjectManager.class );
 
-        for ( Artifact artifact : artifacts )
+        List<Artifact> artifacts = projectManager.getResolvedDependencies( project, ResolutionScope.TEST );
+
+        artifacts.forEach( artifact ->
         {
-            project.getProperties().setProperty( artifact.getDependencyConflictId(),
-                                                 artifact.getFile().getAbsolutePath() );
-        }
+            String id = artifact.getGroupId() + ":" + artifact.getArtifactId()
+                    + ":" + artifact.getType().getName()
+                    + ( artifact.getClassifier().isEmpty() ? "" : ":" + artifact.getClassifier() );
+            String path = artifact.getPath().get().toString();
+            projectManager.setProperty( project, id, path );
+        } );
     }
 
-    /**
-     * @return {@link #skip}
-     */
-    public boolean isSkip()
-    {
-        return skip;
-    }
 }

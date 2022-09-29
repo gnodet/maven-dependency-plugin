@@ -23,14 +23,14 @@ under the License.
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <artifactId>maven-plugins</artifactId>
     <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-plugins</artifactId>
     <version>37</version>
     <relativePath />
   </parent>
 
   <artifactId>maven-dependency-plugin</artifactId>
-  <version>3.3.1-SNAPSHOT</version>
+  <version>4.0.0-SNAPSHOT</version>
   <packaging>maven-plugin</packaging>
 
   <name>Apache Maven Dependency Plugin</name>
@@ -89,9 +89,9 @@ under the License.
   </contributors>
 
   <properties>
-    <mavenVersion>3.2.5</mavenVersion>
+    <mavenVersion>4.0.0-alpha-1-SNAPSHOT</mavenVersion>
     <jettyVersion>9.4.48.v20220622</jettyVersion>
-    <pluginTestingVersion>3.3.0</pluginTestingVersion>
+    <pluginTestingVersion>4.0.0-SNAPSHOT</pluginTestingVersion>
     <resolverVersion>1.0.0.v20140518</resolverVersion>
     <javaVersion>8</javaVersion>
     <project.build.outputTimestamp>2022-03-05T18:51:54Z</project.build.outputTimestamp>
@@ -119,48 +119,25 @@ under the License.
     <!-- maven -->
     <dependency>
       <groupId>org.apache.maven</groupId>
-      <artifactId>maven-artifact</artifactId>
+      <artifactId>maven-api-core</artifactId>
       <version>${mavenVersion}</version>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-plugin-api</artifactId>
-      <version>${mavenVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-model</artifactId>
-      <version>${mavenVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-core</artifactId>
-      <version>${mavenVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-repository-metadata</artifactId>
-      <version>${mavenVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-settings</artifactId>
-      <version>${mavenVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-aether-provider</artifactId>
-      <version>${mavenVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    
+
     <!-- reporting -->
+    <!--
+    <dependency>
+      <groupId>org.apache.maven.reporting</groupId>
+      <artifactId>maven-reporting-api</artifactId>
+      <version>4.0.0-M1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven.doxia</groupId>
+      <artifactId>doxia-site-renderer</artifactId>
+      <version>2.0.0-M2</version>
+    </dependency>
+    -->
+    <!--
     <dependency>
       <groupId>org.apache.maven.reporting</groupId>
       <artifactId>maven-reporting-impl</artifactId>
@@ -171,17 +148,18 @@ under the License.
       <artifactId>commons-io</artifactId>
       <version>2.11.0</version>
     </dependency>
+    -->
 
     <!-- plexus -->
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-archiver</artifactId>
-      <version>4.2.2</version>
+      <version>4.4.0</version>
     </dependency>
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-utils</artifactId>
-      <version>3.4.2</version>
+      <version>${mavenVersion}</version>
     </dependency>
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
@@ -190,6 +168,7 @@ under the License.
     </dependency>
 
     <!-- shared -->
+    <!--
     <dependency>
       <groupId>org.apache.maven.shared</groupId>
       <artifactId>maven-dependency-analyzer</artifactId>
@@ -227,14 +206,18 @@ under the License.
       <artifactId>commons-collections4</artifactId>
       <version>4.2</version>
     </dependency>
+    -->
 
     <!-- dependencies to annotations -->
+    <!--
     <dependency>
       <groupId>org.apache.maven.plugin-tools</groupId>
       <artifactId>maven-plugin-annotations</artifactId>
       <scope>provided</scope>
     </dependency>
-    
+    -->
+
+    <!--
     <dependency>
       <groupId>org.eclipse.aether</groupId>
       <artifactId>aether-api</artifactId>
@@ -265,14 +248,17 @@ under the License.
       <version>${resolverVersion}</version>
       <scope>test</scope>
     </dependency>
+    -->
 
     <!-- test -->
+    <!--
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
+    -->
     <dependency>
       <groupId>org.apache.maven.plugin-testing</groupId>
       <artifactId>maven-plugin-testing-harness</artifactId>
@@ -287,6 +273,7 @@ under the License.
     </dependency>
 
     <!-- Remove once deprecated code has been replaced/removed  -->
+    <!--
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-compat</artifactId>
@@ -323,12 +310,19 @@ under the License.
       <artifactId>commons-beanutils</artifactId>
       <version>1.9.4</version>
     </dependency>
+    -->
 
   </dependencies>
 
   <build>
+    <testSourceDirectory>src/no-tests</testSourceDirectory>
     <pluginManagement>
       <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-plugin-plugin</artifactId>
+          <version>4.0.0-SNAPSHOT</version>
+        </plugin>
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
@@ -387,6 +381,7 @@ under the License.
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-invoker-plugin</artifactId>
+            <version>3.3.0</version>
             <configuration>
               <goals>
                 <goal>clean</goal>
@@ -394,11 +389,9 @@ under the License.
               </goals>
               <projectsDirectory>src/it/projects</projectsDirectory>
               <pomExcludes>
-                <pomExclude>purge-local-repository-bad-pom/pom.xml</pomExclude>
               </pomExcludes>
               <pomIncludes>
                 <pomInclude>*/pom.xml</pomInclude>
-                <pomInclude>purge-local-repository-without-pom</pomInclude>
               </pomIncludes>
               <!-- for mrm -->
               <settingsFile>src/it/mrm/settings.xml</settingsFile>

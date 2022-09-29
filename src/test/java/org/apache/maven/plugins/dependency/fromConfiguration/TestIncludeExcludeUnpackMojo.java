@@ -27,7 +27,6 @@ import java.util.List;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.LegacySupport;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
 import org.apache.maven.plugins.dependency.utils.markers.UnpackFileMarkerHandler;
 import org.codehaus.plexus.archiver.manager.ArchiverManager;
@@ -104,7 +103,7 @@ public class TestIncludeExcludeUnpackMojo
         {
             assertEquals( val, handle.isMarkerSet() );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             fail( e.getLongMessage() );
         }

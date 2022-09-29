@@ -22,12 +22,13 @@ package org.apache.maven.plugins.dependency.fromDependencies;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -37,18 +38,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.ProjectManager;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
-import org.apache.maven.project.MavenProjectHelper;
-import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactsFilter;
-import org.apache.maven.shared.transfer.repository.RepositoryManager;
 import org.codehaus.plexus.util.StringUtils;
 
 /**
@@ -57,17 +54,17 @@ import org.codehaus.plexus.util.StringUtils;
  * @author ankostis
  * @since 2.0-alpha-2
  */
-// CHECKSTYLE_OFF: LineLength
-@Mojo( name = "build-classpath", requiresDependencyResolution = ResolutionScope.TEST, defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true )
-// CHECKSTYLE_ON: LineLength
+@Mojo( name = "build-classpath",
+       requiresDependencyResolution = ResolutionScope.TEST,
+       defaultPhase = LifecyclePhase.GENERATE_SOURCES )
 public class BuildClasspathMojo
-    extends AbstractDependencyFilterMojo
-    implements Comparator<Artifact>
+        extends AbstractDependencyFilterMojo
+        implements Comparator<Artifact>
 {
 
     @Parameter( property = "outputEncoding", defaultValue = "${project.reporting.outputEncoding}" )
     private String outputEncoding;
-    
+
     /**
      * Strip artifact version during copy (only works if prefix is set)
      */
@@ -97,7 +94,7 @@ public class BuildClasspathMojo
      * The file to write the classpath string. If undefined, it just prints the classpath as [INFO].
      */
     @Parameter( property = "mdep.outputFile" )
-    private File outputFile;
+    private Path outputFile;
 
     /**
      * If 'true', it skips the up-to-date-check, and always regenerates the classpath file.
@@ -154,30 +151,21 @@ public class BuildClasspathMojo
     /**
      * Either append the artifact's baseVersion or uniqueVersion to the filename. Will only be used if
      * {@link #isStripVersion()} is {@code false}.
-     * 
+     *
      * @since 2.6
      */
     @Parameter( property = "mdep.useBaseVersion", defaultValue = "true" )
     private boolean useBaseVersion = true;
 
     /**
-     * Maven ProjectHelper
-     */
-    @Component
-    private MavenProjectHelper projectHelper;
-
-    @Component
-    private RepositoryManager repositoryManager;
-
-    /**
      * Main entry into mojo. Gets the list of dependencies and iterates to create a classpath.
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      * @see #getResolvedDependencies(boolean)
      */
     @Override
     protected void doExecute()
-        throws MojoExecutionException
+            throws MojoException
     {
         // initialize the separators.
         boolean isFileSepSet = StringUtils.isNotEmpty( fileSeparator );
@@ -232,7 +220,7 @@ public class BuildClasspathMojo
 
         if ( outputProperty != null )
         {
-            getProject().getProperties().setProperty( outputProperty, cpString );
+            session.getService( ProjectManager.class ).setProperty( getProject(), outputProperty, cpString );
             if ( getLog().isDebugEnabled() )
             {
                 getLog().debug( outputProperty + " = " + cpString );
@@ -262,35 +250,34 @@ public class BuildClasspathMojo
 
     /**
      * @param cpString The classpath.
-     * @throws MojoExecutionException in case of an error.
+     * @throws MojoException in case of an error.
      */
     protected void attachFile( String cpString )
-        throws MojoExecutionException
+            throws MojoException
     {
-        File attachedFile = new File( getProject().getBuild().getDirectory(), "classpath" );
+        Path attachedFile = Paths.get( getProject().getBuild().getDirectory(), "classpath" );
         storeClasspathFile( cpString, attachedFile );
 
-        projectHelper.attachArtifact( getProject(), attachedFile, "classpath" );
+        session.getService( ProjectManager.class ).attachArtifact( session, getProject(), "classpath", attachedFile );
     }
 
     /**
      * Appends the artifact path into the specified StringBuilder.
      *
      * @param art {@link Artifact}
-     * @param sb {@link StringBuilder}
+     * @param sb  {@link StringBuilder}
      */
     protected void appendArtifactPath( Artifact art, StringBuilder sb )
     {
         if ( prefix == null )
         {
-            String file = art.getFile().getPath();
+            String file = art.getPath().get().toString();
             // substitute the property for the local repo path to make the classpath file portable.
             if ( StringUtils.isNotEmpty( localRepoProperty ) )
             {
-                ProjectBuildingRequest projectBuildingRequest = session.getProjectBuildingRequest();
-                File localBasedir = repositoryManager.getLocalRepositoryBasedir( projectBuildingRequest );
+                Path localBasedir = session.getLocalRepository().getPath();
 
-                file = StringUtils.replace( file, localBasedir.getAbsolutePath(), localRepoProperty );
+                file = StringUtils.replace( file, localBasedir.toAbsolutePath().toString(), localRepoProperty );
             }
             sb.append( file );
         }
@@ -300,7 +287,7 @@ public class BuildClasspathMojo
             sb.append( prefix );
             sb.append( File.separator );
             sb.append( DependencyUtil.getFormattedFileName( art, this.stripVersion, this.prependGroupId,
-                                                            this.useBaseVersion, this.stripClassifier ) );
+                    this.useBaseVersion, this.stripClassifier ) );
         }
     }
 
@@ -308,7 +295,7 @@ public class BuildClasspathMojo
      * Checks that new classpath differs from that found inside the old classpathFile.
      *
      * @return true if the specified classpath equals the one found inside the file, false otherwise (including when
-     *         file does not exist but new classpath does).
+     * file does not exist but new classpath does).
      */
     private boolean isUpToDate( String cpString )
     {
@@ -320,7 +307,7 @@ public class BuildClasspathMojo
         catch ( IOException ex )
         {
             this.getLog().warn( "Error while reading old classpath file '" + outputFile + "' for up-to-date check: "
-                + ex );
+                    + ex );
 
             return false;
         }
@@ -331,44 +318,51 @@ public class BuildClasspathMojo
      *
      * @param cpString the string to write into the file
      */
-    private void storeClasspathFile( String cpString, File out )
-        throws MojoExecutionException
+    private void storeClasspathFile( String cpString, Path out )
+            throws MojoException
     {
         // make sure the parent path exists.
-        out.getParentFile().mkdirs();
-        
+        try
+        {
+            Files.createDirectories( out.getParent() );
+        }
+        catch ( IOException e )
+        {
+            throw new MojoException( "Error while creating directory " + out.getParent(), e );
+        }
+
         String encoding = Objects.toString( outputEncoding, "UTF-8" );
 
         try ( Writer w =
-            new BufferedWriter( new OutputStreamWriter( new FileOutputStream( out ), encoding ) ) )
+                      new BufferedWriter( new OutputStreamWriter( Files.newOutputStream( out ), encoding ) ) )
         {
             w.write( cpString );
             getLog().info( "Wrote classpath file '" + out + "'." );
         }
         catch ( IOException ex )
         {
-            throw new MojoExecutionException( "Error while writing to classpath file '" + out,
-                                              ex );
+            throw new MojoException( "Error while writing to classpath file '" + out,
+                    ex );
         }
     }
 
     /**
      * Reads the file specified by the mojo param 'outputFile' into a string. Assumes the field
      * 'outputFile' is not null.
-     * 
+     *
      * @return the string contained in the classpathFile, if it exists, or null otherwise
      * @throws IOException in case of an error
      */
     protected String readClasspathFile()
-        throws IOException
+            throws IOException
     {
         if ( outputFile == null )
         {
             throw new IllegalArgumentException( "The outputFile parameter "
-                + "cannot be null if the file is intended to be read." );
+                    + "cannot be null if the file is intended to be read." );
         }
 
-        if ( !outputFile.isFile() )
+        if ( !Files.isRegularFile( outputFile ) )
         {
             return null;
         }
@@ -376,7 +370,7 @@ public class BuildClasspathMojo
         String encoding = Objects.toString( outputEncoding, "UTF-8" );
 
         try ( BufferedReader r =
-            new BufferedReader( new InputStreamReader( new FileInputStream( outputFile ), encoding ) ) )
+                      new BufferedReader( new InputStreamReader( Files.newInputStream( outputFile ), encoding ) ) )
         {
             for ( String line = r.readLine(); line != null; line = r.readLine() )
             {
@@ -393,8 +387,8 @@ public class BuildClasspathMojo
      * @param art1 first object
      * @param art2 second object
      * @return the value <code>0</code> if the argument string is equal to this string; a value less than <code>0</code>
-     *         if this string is lexicographically less than the string argument; and a value greater than
-     *         <code>0</code> if this string is lexicographically greater than the string argument.
+     * if this string is lexicographically less than the string argument; and a value greater than
+     * <code>0</code> if this string is lexicographically greater than the string argument.
      */
     @Override
     public int compare( Artifact art1, Artifact art2 )
@@ -418,16 +412,10 @@ public class BuildClasspathMojo
         return s1.compareTo( s2 );
     }
 
-    @Override
-    protected ArtifactsFilter getMarkedArtifactFilter()
-    {
-        return null;
-    }
-
     /**
      * @param outputFile the outputFile to set
      */
-    public void setOutputFile( File outputFile )
+    public void setOutputFile( Path outputFile )
     {
         this.outputFile = outputFile;
     }

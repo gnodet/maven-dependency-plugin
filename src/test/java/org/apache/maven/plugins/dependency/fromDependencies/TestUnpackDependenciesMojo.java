@@ -21,17 +21,18 @@ package org.apache.maven.plugins.dependency.fromDependencies;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.plugin.MojoException;
 import org.apache.maven.artifact.handler.manager.ArtifactHandlerManager;
 import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
 import org.apache.maven.artifact.versioning.VersionRange;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.LegacySupport;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.dependency.AbstractDependencyMojoTestCase;
 import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
@@ -124,7 +125,7 @@ public class TestUnpackDependenciesMojo
         {
             assertEquals( val, handle.isMarkerSet() );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
             fail( e.getLongMessage() );
         }
@@ -226,7 +227,7 @@ public class TestUnpackDependenciesMojo
             mojo.execute();
             fail( "expected an exception" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
 
         }
@@ -595,19 +596,19 @@ public class TestUnpackDependenciesMojo
             mojo.execute();
             fail( "ExpectedException" );
         }
-        catch ( MojoExecutionException e )
+        catch ( MojoException e )
         {
         }
     }
 
-    public File getUnpackedFile( Artifact artifact )
+    public Path getUnpackedFile( Artifact artifact )
     {
-        File destDir =
+        Path destDir =
             DependencyUtil.getFormattedOutputDirectory( mojo.isUseSubDirectoryPerScope(),
                                                         mojo.isUseSubDirectoryPerType(),
                                                         mojo.isUseSubDirectoryPerArtifact(), mojo.useRepositoryLayout,
                                                         mojo.stripVersion, mojo.stripType, mojo.getOutputDirectory(), artifact );
-        File unpacked = new File( destDir, DependencyArtifactStubFactory.getUnpackableFileName( artifact ) );
+        Path unpacked = destDir.resolve( DependencyArtifactStubFactory.getUnpackableFileName( artifact ) );
         assertTrue( unpacked.exists() );
         return unpacked;
     }
@@ -618,7 +619,7 @@ public class TestUnpackDependenciesMojo
     }
 
     public void assertUnpacked( Artifact artifact, boolean overWrite )
-        throws InterruptedException, MojoExecutionException, MojoFailureException
+        throws InterruptedException, MojoException
     {
         File unpackedFile = getUnpackedFile( artifact );
 

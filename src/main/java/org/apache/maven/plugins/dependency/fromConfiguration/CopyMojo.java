@@ -19,16 +19,15 @@ package org.apache.maven.plugins.dependency.fromConfiguration;
  * under the License.
  */
 
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.dependency.utils.filters.ArtifactItemFilter;
-import org.apache.maven.plugins.dependency.utils.filters.DestFileFilter;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-
-import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Predicate;
+
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.plugins.dependency.utils.filters.DestFileFilter;
 
 /**
  * Goal that copies a list of artifacts from the repository to defined locations.
@@ -36,77 +35,72 @@ import java.util.List;
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @since 1.0
  */
-@Mojo( name = "copy", defaultPhase = LifecyclePhase.PROCESS_SOURCES, requiresProject = false, threadSafe = true )
+@Mojo( name = "copy", defaultPhase = LifecyclePhase.PROCESS_SOURCES, requiresProject = false )
 public class CopyMojo
-    extends AbstractFromConfigurationMojo
+        extends AbstractFromConfigurationMojo
 {
-
-    /**
-     * Strip artifact version during copy
-     */
-    @Parameter( property = "mdep.stripVersion", defaultValue = "false" )
-    private boolean stripVersion = false;
-
-    /**
-     * Strip artifact classifier during copy
-     */
-    @Parameter( property = "mdep.stripClassifier", defaultValue = "false" )
-    private boolean stripClassifier = false;
-
-    /**
-     * Prepend artifact groupId during copy
-     * 
-     * @since 2.7
-     */
-    @Parameter( property = "mdep.prependGroupId", defaultValue = "false" )
-    private boolean prependGroupId = false;
-
-    /**
-     * Use artifact baseVersion during copy
-     * 
-     * @since 2.7
-     */
-    @Parameter( property = "mdep.useBaseVersion", defaultValue = "false" )
-    private boolean useBaseVersion = false;
-
-    /**
-     * The artifact to copy from command line. A string of the form groupId:artifactId:version[:packaging[:classifier]].
-     * Use {@link #artifactItems} within the POM configuration.
-     */
-    @SuppressWarnings( "unused" ) // marker-field, setArtifact(String) does the magic
-    @Parameter( property = "artifact" )
-    private String artifact;
 
     /**
      * <i>not used in this goal</i>
      */
     @Parameter
     protected boolean useJvmChmod = true;
-
     /**
      * <i>not used in this goal</i>
      */
     @Parameter
     protected boolean ignorePermissions;
+    /**
+     * Strip artifact version during copy
+     */
+    @Parameter( property = "mdep.stripVersion", defaultValue = "false" )
+    private boolean stripVersion = false;
+    /**
+     * Strip artifact classifier during copy
+     */
+    @Parameter( property = "mdep.stripClassifier", defaultValue = "false" )
+    private boolean stripClassifier = false;
+    /**
+     * Prepend artifact groupId during copy
+     *
+     * @since 2.7
+     */
+    @Parameter( property = "mdep.prependGroupId", defaultValue = "false" )
+    private boolean prependGroupId = false;
+    /**
+     * Use artifact baseVersion during copy
+     *
+     * @since 2.7
+     */
+    @Parameter( property = "mdep.useBaseVersion", defaultValue = "false" )
+    private boolean useBaseVersion = false;
+    /**
+     * The artifact to copy from command line. A string of the form groupId:artifactId:version[:packaging[:classifier]].
+     * Use {@link AbstractFromConfigurationMojo#artifactItems} within the POM configuration.
+     */
+    @SuppressWarnings( "unused" ) // marker-field, setArtifact(String) does the magic
+    @Parameter( property = "artifact" )
+    private String artifact;
 
     /**
      * Main entry into mojo. This method gets the ArtifactItems and iterates through each one passing it to
      * copyArtifact.
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      * @see ArtifactItem
      * @see #getArtifactItems
      * @see #copyArtifact(ArtifactItem)
      */
     @Override
     protected void doExecute()
-        throws MojoExecutionException, MojoFailureException
+            throws MojoException
     {
         verifyRequirements();
 
         List<ArtifactItem> theArtifactItems =
-            getProcessedArtifactItems( new ProcessArtifactItemsRequest( stripVersion, prependGroupId, useBaseVersion,
-                                                                        stripClassifier ) );
+                getProcessedArtifactItems(
+                        new ProcessArtifactItemsRequest( stripVersion, prependGroupId, useBaseVersion,
+                                stripClassifier ) );
         for ( ArtifactItem artifactItem : theArtifactItems )
         {
             if ( artifactItem.isNeedsProcessing() )
@@ -124,23 +118,24 @@ public class CopyMojo
      * Resolves the artifact from the repository and copies it to the specified location.
      *
      * @param artifactItem containing the information about the Artifact to copy.
-     * @throws MojoExecutionException with a message if an error occurs.
-     * @see #copyFile(File, File)
+     * @throws MojoException with a message if an error occurs.
+     * @see #copyFile(Path, Path)
      */
     protected void copyArtifact( ArtifactItem artifactItem )
-        throws MojoExecutionException
+            throws MojoException
     {
-        File destFile = new File( artifactItem.getOutputDirectory(), artifactItem.getDestFileName() );
+        Path destFile = artifactItem.getOutputDirectory().resolve( artifactItem.getDestFileName() );
 
-        copyFile( artifactItem.getArtifact().getFile(), destFile );
+        copyFile( artifactItem.getArtifact().getPath().get(), destFile );
     }
 
     @Override
-    protected ArtifactItemFilter getMarkedArtifactFilter( ArtifactItem item )
+    protected Predicate<ArtifactItem> getMarkedArtifactFilter( ArtifactItem item )
     {
         return new DestFileFilter( this.isOverWriteReleases(), this.isOverWriteSnapshots(), this.isOverWriteIfNewer(),
-                            false, false, false, false, this.stripVersion, prependGroupId, useBaseVersion,
-                            item.getOutputDirectory() );
+                false, false, false, false,
+                this.stripVersion, prependGroupId, useBaseVersion,
+                item.getOutputDirectory() );
     }
 
     /**

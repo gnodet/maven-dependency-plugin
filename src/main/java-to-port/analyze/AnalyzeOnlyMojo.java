@@ -19,9 +19,9 @@ package org.apache.maven.plugins.dependency.analyze;
  * under the License.
  */
 
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
 
 /**
  * Analyzes the dependencies of this project and determines which are: used and declared; used and undeclared; unused
@@ -38,16 +38,13 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * @see AnalyzeMojo
  * @since 2.0
  */
-//@formatter:off
-@Mojo( 
+@Mojo(
     name = "analyze-only", 
-    requiresDependencyResolution = ResolutionScope.TEST, 
-    defaultPhase = LifecyclePhase.VERIFY, 
-    threadSafe = true 
+    requiresDependencyResolution = ResolutionScope.TEST,
+    defaultPhase = LifecyclePhase.VERIFY
 )
-//@formatter:on
 public class AnalyzeOnlyMojo
-    extends AbstractAnalyzeMojo
+        extends AbstractAnalyzeMojo
 {
     // subclassed to provide annotations
 }

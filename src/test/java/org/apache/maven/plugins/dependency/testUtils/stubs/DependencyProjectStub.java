@@ -82,7 +82,7 @@ public class DependencyProjectStub
 
     private List<Dependency> dependencies;
 
-    private File file;
+    private Path file;
 
     private List<MavenProject> collectedProjects;
 

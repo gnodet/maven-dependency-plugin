@@ -16,20 +16,24 @@ package org.apache.maven.plugins.dependency.utils.markers;
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.    
+ * under the License.
  */
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.plugins.dependency.utils.filters.ArtifactUtils;
 
 /**
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  */
 public class DefaultFileMarkerHandler
-    implements MarkerHandler
+        implements MarkerHandler
 {
     /**
      * The artifact.
@@ -39,21 +43,21 @@ public class DefaultFileMarkerHandler
     /**
      * The marker directory.
      */
-    protected File markerFilesDirectory;
+    protected Path markerFilesDirectory;
 
     /**
      * @param theMarkerFilesDirectory The marker directory.
      */
-    public DefaultFileMarkerHandler( File theMarkerFilesDirectory )
+    public DefaultFileMarkerHandler( Path theMarkerFilesDirectory )
     {
         this.markerFilesDirectory = theMarkerFilesDirectory;
     }
 
     /**
-     * @param theArtifact {@link Artifact}
+     * @param theArtifact             {@link Artifact}
      * @param theMarkerFilesDirectory The marker directory.
      */
-    public DefaultFileMarkerHandler( Artifact theArtifact, File theMarkerFilesDirectory )
+    public DefaultFileMarkerHandler( Artifact theArtifact, Path theMarkerFilesDirectory )
     {
         this.artifact = theArtifact;
         this.markerFilesDirectory = theMarkerFilesDirectory;
@@ -61,39 +65,40 @@ public class DefaultFileMarkerHandler
 
     /**
      * Returns properly formatted File
-     * 
+     *
      * @return File object for marker. The file is not guaranteed to exist.
      */
-    protected File getMarkerFile()
+    protected Path getMarkerFile()
     {
-        return new File( this.markerFilesDirectory, this.artifact.getId().replace( ':', '-' ) + ".marker" );
+        return this.markerFilesDirectory.resolve( ArtifactUtils.getIdWithDashes( this.artifact ) + ".marker" );
     }
 
     /**
      * Tests whether the file or directory denoted by this abstract pathname exists.
-     * 
+     *
      * @return <code>true</code> if and only if the file or directory denoted by this abstract pathname exists;
-     *         <code>false</code> otherwise
+     * <code>false</code> otherwise
      * @throws SecurityException If a security manager exists and its <code>{@link
-     *          java.lang.SecurityManager#checkRead(java.lang.String)}</code> method denies read access to the file or
-     *             directory
+     *                           java.lang.SecurityManager#checkRead(java.lang.String)}</code> method denies read access
+     *                           to the file or
+     *                           directory
      */
     @Override
     public boolean isMarkerSet()
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
-        return marker.exists();
+        Path marker = getMarkerFile();
+        return Files.exists( marker );
     }
 
     @Override
     public boolean isMarkerOlder( Artifact artifact1 )
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
-        if ( marker.exists() )
+        Path marker = getMarkerFile();
+        if ( Files.exists( marker ) )
         {
-            return artifact1.getFile().lastModified() > marker.lastModified();
+            return isNewer( artifact1.getPath().get(), marker );
         }
         else
         {
@@ -105,67 +110,86 @@ public class DefaultFileMarkerHandler
 
     @Override
     public void setMarker()
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
+        Path marker = getMarkerFile();
         // create marker file
         try
         {
-            marker.getParentFile().mkdirs();
+            Files.createDirectories( marker.getParent() );
         }
         catch ( NullPointerException e )
         {
             // parent is null, ignore it.
         }
+        catch ( IOException e )
+        {
+            throw new MojoException( "Unable to create directory: " + marker, e );
+        }
         try
         {
-            marker.createNewFile();
+            Files.createFile( marker );
         }
         catch ( IOException e )
         {
-            throw new MojoExecutionException( "Unable to create Marker: " + marker.getAbsolutePath(), e );
+            throw new MojoException( "Unable to create Marker: " + marker, e );
         }
 
         // update marker file timestamp
         try
         {
-            long ts;
-            if ( this.artifact != null && this.artifact.getFile() != null )
+            FileTime ts;
+            if ( this.artifact != null && this.artifact.getPath().isPresent() )
             {
-                ts = this.artifact.getFile().lastModified();
+                ts = Files.getLastModifiedTime( this.artifact.getPath().get() );
             }
             else
             {
-                ts = System.currentTimeMillis();
+                ts = FileTime.from( Instant.now() );
             }
-            if ( !marker.setLastModified( ts ) )
+            try
             {
-                throw new MojoExecutionException( "Unable to update last modified timestamp on marker file "
-                    + marker.getAbsolutePath() );
+                Files.setLastModifiedTime( marker, ts );
+            }
+            catch ( IOException e )
+            {
+                throw new MojoException( "Unable to update last modified timestamp on marker file "
+                        + marker.toAbsolutePath(), e );
 
             }
         }
+        catch ( MojoException e )
+        {
+            throw e;
+        }
         catch ( Exception e )
         {
-            throw new MojoExecutionException( "Unable to update Marker timestamp: " + marker.getAbsolutePath(), e );
+            throw new MojoException( "Unable to update Marker timestamp: " + marker.toAbsolutePath(), e );
         }
     }
 
     /**
      * Deletes the file or directory denoted by this abstract pathname. If this pathname denotes a directory, then the
      * directory must be empty in order to be deleted.
-     * 
+     *
      * @return <code>true</code> if and only if the file or directory is successfully deleted; <code>false</code>
-     *         otherwise
+     * otherwise
      * @throws SecurityException If a security manager exists and its <code>{@link
-     *          java.lang.SecurityManager#checkDelete}</code> method denies delete access to the file
+     *                           java.lang.SecurityManager#checkDelete}</code> method denies delete access to the file
      */
     @Override
     public boolean clearMarker()
-        throws MojoExecutionException
+            throws MojoException
     {
-        File marker = getMarkerFile();
-        return marker.delete();
+        Path marker = getMarkerFile();
+        try
+        {
+            return Files.deleteIfExists( marker );
+        }
+        catch ( IOException e )
+        {
+            throw new MojoException( e );
+        }
     }
 
     /**
@@ -188,7 +212,7 @@ public class DefaultFileMarkerHandler
     /**
      * @return Returns the markerFilesDirectory.
      */
-    public File getMarkerFilesDirectory()
+    public Path getMarkerFilesDirectory()
     {
         return this.markerFilesDirectory;
     }
@@ -196,8 +220,20 @@ public class DefaultFileMarkerHandler
     /**
      * @param markerFilesDirectory The markerFilesDirectory to set.
      */
-    public void setMarkerFilesDirectory( File markerFilesDirectory )
+    public void setMarkerFilesDirectory( Path markerFilesDirectory )
     {
         this.markerFilesDirectory = markerFilesDirectory;
+    }
+
+    static boolean isNewer( Path p1, Path p2 )
+    {
+        try
+        {
+            return Files.getLastModifiedTime( p1 ).compareTo( Files.getLastModifiedTime( p2 ) ) > 0;
+        }
+        catch ( IOException e )
+        {
+            throw new MojoException( e );
+        }
     }
 }

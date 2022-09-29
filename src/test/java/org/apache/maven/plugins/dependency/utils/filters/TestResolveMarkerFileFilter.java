@@ -28,15 +28,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 import junit.framework.TestCase;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
-import org.apache.maven.plugins.dependency.utils.markers.SourcesFileMarkerHandler;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugin.testing.SilentLog;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
+import org.apache.maven.plugins.dependency.testUtils.DependencyArtifactStubFactory;
+import org.apache.maven.plugins.dependency.utils.markers.SourcesFileMarkerHandler;
 
 /**
  * @author brianf
@@ -72,7 +69,7 @@ public class TestResolveMarkerFileFilter
     }
 
     public void testResolveFile()
-        throws IOException, ArtifactFilterException, MojoExecutionException
+        throws IOException, ArtifactFilterException, MojoException
     {
         SourcesFileMarkerHandler handler = new SourcesFileMarkerHandler( outputFolder );
 

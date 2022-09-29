@@ -19,29 +19,28 @@ package org.apache.maven.plugins.dependency.resolvers;
  * under the License.
  */
 
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.plugin.logging.Log;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.shared.artifact.filter.resolve.AbstractFilter;
-import org.apache.maven.shared.artifact.filter.resolve.Node;
-import org.apache.maven.shared.artifact.filter.resolve.TransformableFilter;
-
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.apache.maven.api.Dependency;
+import org.apache.maven.api.Node;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.plugins.dependency.utils.filters.ArtifactUtils;
+
 /**
- * {@link TransformableFilter} implementation that excludes artifacts found in the Reactor.
+ * A filter implementation that excludes artifacts found in the Reactor.
  *
  * @author Maarten Mulders
  */
-public class ExcludeReactorProjectsDependencyFilter extends AbstractFilter
+public class ExcludeReactorProjectsDependencyFilter implements Predicate<Node>
 {
     private final Log log;
     private final Set<String> reactorArtifactKeys;
 
-    public ExcludeReactorProjectsDependencyFilter( final List<MavenProject> reactorProjects, final Log log )
+    public ExcludeReactorProjectsDependencyFilter( final List<Project> reactorProjects, final Log log )
     {
         this.log = log;
         this.reactorArtifactKeys = reactorProjects.stream()
@@ -49,14 +48,12 @@ public class ExcludeReactorProjectsDependencyFilter extends AbstractFilter
                 .collect( Collectors.toSet() );
     }
 
-    @Override
-    public boolean accept( final Node node, final List<Node> parents )
+    public boolean test( final Node node )
     {
         final Dependency dependency = node.getDependency();
         if ( dependency != null )
         {
-            final String dependencyArtifactKey = ArtifactUtils.key(
-                    dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion() );
+            final String dependencyArtifactKey = ArtifactUtils.key( dependency );
 
             final boolean result = isDependencyArtifactInReactor( dependencyArtifactKey );
 

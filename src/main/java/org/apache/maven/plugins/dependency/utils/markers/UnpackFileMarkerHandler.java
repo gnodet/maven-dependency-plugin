@@ -19,16 +19,17 @@ package org.apache.maven.plugins.dependency.utils.markers;
  * under the License.
  */
 
-import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
-import org.codehaus.plexus.util.StringUtils;
+import java.nio.file.Path;
 
-import java.io.File;
+import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
+import org.apache.maven.plugins.dependency.utils.filters.ArtifactUtils;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * @author <a href="mailto:dbradicich@comcast.net">Damian Bradicich</a>
  */
 public class UnpackFileMarkerHandler
-    extends DefaultFileMarkerHandler
+        extends DefaultFileMarkerHandler
 {
     /**
      * The ArtifactItem.
@@ -38,32 +39,32 @@ public class UnpackFileMarkerHandler
     /**
      * @param markerFilesDirectory The marker files directory.
      */
-    public UnpackFileMarkerHandler( File markerFilesDirectory )
+    public UnpackFileMarkerHandler( Path markerFilesDirectory )
     {
         super( markerFilesDirectory );
     }
 
     /**
-     * @param artifactItem {@link ArtifactItem}
+     * @param artifactItem         {@link ArtifactItem}
      * @param markerFilesDirectory the marker files directory.
      */
-    public UnpackFileMarkerHandler( ArtifactItem artifactItem, File markerFilesDirectory )
+    public UnpackFileMarkerHandler( ArtifactItem artifactItem, Path markerFilesDirectory )
     {
         this( markerFilesDirectory );
         setArtifactItem( artifactItem );
     }
 
     @Override
-    protected File getMarkerFile()
+    protected Path getMarkerFile()
     {
         /**
          * Build a hash of all include/exclude strings, to determine if an artifactItem has been unpacked using the
          * include/exclude parameters, this will allow an artifact to be included multiple times with different
          * include/exclude parameters
          */
-        File markerFile;
+        Path markerFile;
         if ( this.artifactItem == null || ( StringUtils.isEmpty( this.artifactItem.getIncludes() )
-            && StringUtils.isEmpty( this.artifactItem.getExcludes() ) ) )
+                && StringUtils.isEmpty( this.artifactItem.getExcludes() ) ) )
         {
             markerFile = super.getMarkerFile();
         }
@@ -82,10 +83,19 @@ public class UnpackFileMarkerHandler
             }
 
             markerFile =
-                new File( this.markerFilesDirectory, this.artifact.getId().replace( ':', '-' ) + includeExcludeHash );
+                    this.markerFilesDirectory.resolve(
+                            ArtifactUtils.getIdWithDashes( this.artifact ) + includeExcludeHash );
         }
 
         return markerFile;
+    }
+
+    /**
+     * @return {@link #artifactItem}
+     */
+    public ArtifactItem getArtifactItem()
+    {
+        return this.artifactItem;
     }
 
     /**
@@ -99,13 +109,5 @@ public class UnpackFileMarkerHandler
         {
             setArtifact( this.artifactItem.getArtifact() );
         }
-    }
-
-    /**
-     * @return {@link #artifactItem}
-     */
-    public ArtifactItem getArtifactItem()
-    {
-        return this.artifactItem;
     }
 }

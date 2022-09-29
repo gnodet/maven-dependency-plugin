@@ -19,20 +19,21 @@ package org.apache.maven.plugins.dependency.fromDependencies;
  * under the License.
  */
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
+import java.nio.file.Path;
+import java.util.function.Predicate;
+
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.ResolutionScope;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.LifecyclePhase;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.plugins.dependency.fromConfiguration.ArtifactItem;
 import org.apache.maven.plugins.dependency.utils.DependencyStatusSets;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
 import org.apache.maven.plugins.dependency.utils.filters.MarkerFileFilter;
 import org.apache.maven.plugins.dependency.utils.markers.DefaultFileMarkerHandler;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactsFilter;
 import org.codehaus.plexus.components.io.filemappers.FileMapper;
-
-import java.io.File;
 
 /**
  * Goal that unpacks the project dependencies from the repository to a defined location.
@@ -40,11 +41,11 @@ import java.io.File;
  * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @since 1.0
  */
-//CHECKSTYLE_OFF: LineLength
-@Mojo( name = "unpack-dependencies", requiresDependencyResolution = ResolutionScope.TEST, defaultPhase = LifecyclePhase.PROCESS_SOURCES, threadSafe = true )
-//CHECKSTYLE_ON: LineLength
+@Mojo( name = "unpack-dependencies",
+       requiresDependencyResolution = ResolutionScope.TEST,
+       defaultPhase = LifecyclePhase.PROCESS_SOURCES )
 public class UnpackDependenciesMojo
-    extends AbstractFromDependenciesMojo
+        extends AbstractFromDependenciesMojo
 {
     /**
      * A comma separated list of file patterns to include when unpacking the artifact. i.e.
@@ -68,7 +69,7 @@ public class UnpackDependenciesMojo
 
     /**
      * Encoding of artifacts.
-     * 
+     *
      * @since 3.0
      */
     @Parameter( property = "mdep.unpack.encoding" )
@@ -86,21 +87,21 @@ public class UnpackDependenciesMojo
      * Main entry into mojo. This method gets the dependencies and iterates through each one passing it to
      * DependencyUtil.unpackFile().
      *
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      * @see #getDependencySets(boolean)
-     * @see #unpack(Artifact, File, String, FileMapper[])
+     * @see #unpack(Artifact, Path, String, FileMapper[])
      */
     @Override
     protected void doExecute()
-        throws MojoExecutionException
+            throws MojoException
     {
-        DependencyStatusSets dss = getDependencySets( this.failOnMissingClassifierArtifact );
+        DependencyStatusSets<Artifact> dss = getDependencySets( this.failOnMissingClassifierArtifact );
 
         for ( Artifact artifact : dss.getResolvedDependencies() )
         {
-            File destDir = DependencyUtil.getFormattedOutputDirectory( useSubDirectoryPerScope, useSubDirectoryPerType,
-                                                                  useSubDirectoryPerArtifact, useRepositoryLayout,
-                                                                  stripVersion, stripType, outputDirectory, artifact );
+            Path destDir = DependencyUtil.getFormattedOutputDirectory( useSubDirectoryPerScope, useSubDirectoryPerType,
+                    useSubDirectoryPerArtifact, useRepositoryLayout,
+                    stripVersion, stripType, outputDirectory, artifact );
             unpack( artifact, destDir, getIncludes(), getExcludes(), getEncoding(), getFileMappers() );
             DefaultFileMarkerHandler handler = new DefaultFileMarkerHandler( artifact, this.markersDirectory );
             handler.setMarker();
@@ -108,15 +109,16 @@ public class UnpackDependenciesMojo
 
         for ( Artifact artifact : dss.getSkippedDependencies() )
         {
-            getLog().info( artifact.getId() + " already exists in destination." );
+            getLog().info( artifact + " already exists in destination." );
         }
     }
 
     @Override
-    protected ArtifactsFilter getMarkedArtifactFilter()
+    protected Predicate<Artifact> getMarkedArtifactFilter()
     {
-        return new MarkerFileFilter( this.overWriteReleases, this.overWriteSnapshots, this.overWriteIfNewer,
-                                     new DefaultFileMarkerHandler( this.markersDirectory ) );
+        Predicate<ArtifactItem> f = new MarkerFileFilter( this.overWriteReleases, this.overWriteSnapshots,
+                this.overWriteIfNewer, new DefaultFileMarkerHandler( this.markersDirectory ) );
+        return a -> f.test( new ArtifactItem( a ) );
     }
 
     /**
@@ -152,15 +154,6 @@ public class UnpackDependenciesMojo
     }
 
     /**
-     * @param encoding The encoding to set.
-     * @since 3.0
-     */
-    public void setEncoding( String encoding )
-    {
-        this.encoding = encoding;
-    }
-
-    /**
      * @return Returns the encoding.
      * @since 3.0
      */
@@ -170,9 +163,17 @@ public class UnpackDependenciesMojo
     }
 
     /**
+     * @param encoding The encoding to set.
+     * @since 3.0
+     */
+    public void setEncoding( String encoding )
+    {
+        this.encoding = encoding;
+    }
+
+    /**
      * @return {@link FileMapper}s to be used for rewriting each target path, or {@code null} if no rewriting shall
-     *         happen.
-     *
+     * happen.
      * @since 3.1.2
      */
     public FileMapper[] getFileMappers()
@@ -182,8 +183,7 @@ public class UnpackDependenciesMojo
 
     /**
      * @param fileMappers {@link FileMapper}s to be used for rewriting each target path, or {@code null} if no
-     *                   rewriting shall happen.
-     *
+     *                    rewriting shall happen.
      * @since 3.1.2
      */
     public void setFileMappers( FileMapper[] fileMappers )

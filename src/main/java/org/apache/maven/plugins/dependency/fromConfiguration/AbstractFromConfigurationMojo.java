@@ -19,29 +19,24 @@ package org.apache.maven.plugins.dependency.fromConfiguration;
  * under the License.
  */
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.handler.ArtifactHandler;
-import org.apache.maven.artifact.handler.manager.ArtifactHandlerManager;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Coordinate;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.model.Dependency;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.ArtifactResolverException;
 import org.apache.maven.plugins.dependency.AbstractDependencyMojo;
 import org.apache.maven.plugins.dependency.utils.DependencyUtil;
-import org.apache.maven.plugins.dependency.utils.filters.ArtifactItemFilter;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.shared.artifact.filter.collection.ArtifactFilterException;
-import org.apache.maven.shared.transfer.artifact.DefaultArtifactCoordinate;
-import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResolver;
-import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResolverException;
-import org.apache.maven.shared.transfer.repository.RepositoryManager;
 import org.codehaus.plexus.util.StringUtils;
 
 /**
@@ -52,7 +47,7 @@ import org.codehaus.plexus.util.StringUtils;
  * @see ArtifactItem
  */
 public abstract class AbstractFromConfigurationMojo
-    extends AbstractDependencyMojo
+        extends AbstractDependencyMojo
 {
     /**
      * Default output location used for mojo, unless overridden in ArtifactItem.
@@ -60,7 +55,7 @@ public abstract class AbstractFromConfigurationMojo
      * @since 1.0
      */
     @Parameter( property = "outputDirectory", defaultValue = "${project.build.directory}/dependency" )
-    private File outputDirectory;
+    private Path outputDirectory;
 
     /**
      * Overwrite release artifacts
@@ -102,30 +97,21 @@ public abstract class AbstractFromConfigurationMojo
      * @since 2.2
      */
     @Parameter
-    private File localRepositoryDirectory;
+    private Path localRepositoryDirectory;
 
-    @Component
-    private ArtifactResolver artifactResolver;
-
-    @Component
-    private RepositoryManager repositoryManager;
-
-    @Component
-    private ArtifactHandlerManager artifactHandlerManager;
-
-    abstract ArtifactItemFilter getMarkedArtifactFilter( ArtifactItem item );
+    abstract Predicate<ArtifactItem> getMarkedArtifactFilter( ArtifactItem item );
 
     /**
      * artifactItems is filled by either field injection or by setArtifact().
-     * 
-     * @throws MojoFailureException in case of an error.
+     *
+     * @throws MojoException in case of an error.
      */
     protected void verifyRequirements()
-        throws MojoFailureException
+            throws MojoException
     {
         if ( artifactItems == null || artifactItems.isEmpty() )
         {
-            throw new MojoFailureException( "Either artifact or artifactItems is required " );
+            throw new MojoException( "Either artifact or artifactItems is required " );
         }
     }
 
@@ -135,22 +121,22 @@ public abstract class AbstractFromConfigurationMojo
      *
      * @param processArtifactItemsRequest preprocessing instructions
      * @return An ArrayList of preprocessed ArtifactItems
-     * @throws MojoExecutionException with a message if an error occurs.
+     * @throws MojoException with a message if an error occurs.
      * @see ArtifactItem
      */
     protected List<ArtifactItem> getProcessedArtifactItems( ProcessArtifactItemsRequest processArtifactItemsRequest )
-        throws MojoExecutionException
+            throws MojoException
     {
 
         boolean removeVersion = processArtifactItemsRequest.isRemoveVersion(),
-                        prependGroupId = processArtifactItemsRequest.isPrependGroupId(),
-                        useBaseVersion = processArtifactItemsRequest.isUseBaseVersion();
+                prependGroupId = processArtifactItemsRequest.isPrependGroupId(),
+                useBaseVersion = processArtifactItemsRequest.isUseBaseVersion();
 
         boolean removeClassifier = processArtifactItemsRequest.isRemoveClassifier();
 
         if ( artifactItems == null || artifactItems.size() < 1 )
         {
-            throw new MojoExecutionException( "There are no artifactItems configured." );
+            throw new MojoException( "There are no artifactItems configured." );
         }
 
         for ( ArtifactItem artifactItem : artifactItems )
@@ -161,7 +147,14 @@ public abstract class AbstractFromConfigurationMojo
             {
                 artifactItem.setOutputDirectory( this.outputDirectory );
             }
-            artifactItem.getOutputDirectory().mkdirs();
+            try
+            {
+                Files.createDirectories( artifactItem.getOutputDirectory() );
+            }
+            catch ( IOException e )
+            {
+                throw new MojoException( "Unable to create output directory " + artifactItem.getOutputDirectory(), e );
+            }
 
             // make sure we have a version.
             if ( StringUtils.isEmpty( artifactItem.getVersion() ) )
@@ -174,27 +167,27 @@ public abstract class AbstractFromConfigurationMojo
             if ( StringUtils.isEmpty( artifactItem.getDestFileName() ) )
             {
                 artifactItem.setDestFileName( DependencyUtil.getFormattedFileName( artifactItem.getArtifact(),
-                                                                                   removeVersion, prependGroupId,
-                                                                                   useBaseVersion, removeClassifier ) );
+                        removeVersion, prependGroupId,
+                        useBaseVersion, removeClassifier ) );
             }
 
             try
             {
                 artifactItem.setNeedsProcessing( checkIfProcessingNeeded( artifactItem ) );
             }
-            catch ( ArtifactFilterException e )
+            catch ( MojoException e )
             {
-                throw new MojoExecutionException( e.getMessage(), e );
+                throw new MojoException( e.getMessage(), e );
             }
         }
         return artifactItems;
     }
 
     private boolean checkIfProcessingNeeded( ArtifactItem item )
-        throws MojoExecutionException, ArtifactFilterException
+            throws MojoException
     {
         return StringUtils.equalsIgnoreCase( item.getOverWrite(), "true" )
-            || getMarkedArtifactFilter( item ).isArtifactIncluded( item );
+                || getMarkedArtifactFilter( item ).test( item );
     }
 
     /**
@@ -203,10 +196,10 @@ public abstract class AbstractFromConfigurationMojo
      *
      * @param artifactItem containing information about artifact from plugin configuration.
      * @return Artifact object representing the specified file.
-     * @throws MojoExecutionException with a message if the version can't be found in DependencyManagement.
+     * @throws MojoException with a message if the version can't be found in DependencyManagement.
      */
     protected Artifact getArtifact( ArtifactItem artifactItem )
-        throws MojoExecutionException
+            throws MojoException
     {
         Artifact artifact;
 
@@ -222,38 +215,27 @@ public abstract class AbstractFromConfigurationMojo
              * ResolutionNode node = (ResolutionNode) iter.next(); artifact = node.getArtifact(); }
              */
 
-            ProjectBuildingRequest buildingRequest = newResolveArtifactProjectBuildingRequest();
+            Session session = newResolveArtifactProjectBuildingRequest();
 
             if ( localRepositoryDirectory != null )
             {
-                buildingRequest =
-                    repositoryManager.setLocalRepositoryBasedir( buildingRequest, localRepositoryDirectory );
+                session = session.withLocalRepository( session.createLocalRepository( localRepositoryDirectory ) );
             }
 
             // Map dependency to artifact coordinate
-            DefaultArtifactCoordinate coordinate = new DefaultArtifactCoordinate();
-            coordinate.setGroupId( artifactItem.getGroupId() );
-            coordinate.setArtifactId( artifactItem.getArtifactId() );
-            coordinate.setVersion( artifactItem.getVersion() );
-            coordinate.setClassifier( artifactItem.getClassifier() );
+            Coordinate coordinate = session.createCoordinate(
+                    artifactItem.getGroupId(),
+                    artifactItem.getArtifactId(),
+                    artifactItem.getVersion(),
+                    artifactItem.getClassifier(),
+                    null,
+                    artifactItem.getType() );
 
-            final String extension;
-            ArtifactHandler artifactHandler = artifactHandlerManager.getArtifactHandler( artifactItem.getType() );
-            if ( artifactHandler != null )
-            {
-                extension = artifactHandler.getExtension();
-            }
-            else
-            {
-                extension = artifactItem.getType();
-            }
-            coordinate.setExtension( extension );
-
-            artifact = artifactResolver.resolveArtifact( buildingRequest, coordinate ).getArtifact();
+            artifact = session.resolveArtifact( coordinate );
         }
         catch ( ArtifactResolverException e )
         {
-            throw new MojoExecutionException( "Unable to find/resolve artifact.", e );
+            throw new MojoException( "Unable to find/resolve artifact.", e );
         }
 
         return artifact;
@@ -265,23 +247,25 @@ public abstract class AbstractFromConfigurationMojo
      * doesn't find a match, it will try again looking for artifactId and groupId only.
      *
      * @param artifact representing configured file.
-     * @throws MojoExecutionException
+     * @throws MojoException
      */
     private void fillMissingArtifactVersion( ArtifactItem artifact )
-        throws MojoExecutionException
+            throws MojoException
     {
-        MavenProject project = getProject();
-        List<Dependency> deps = project.getDependencies();
-        List<Dependency> depMngt = project.getDependencyManagement() == null ? Collections.emptyList()
-                        : project.getDependencyManagement().getDependencies();
+        Project project = getProject();
+        List<Dependency> deps = project.getModel().getDependencies();
+        List<Dependency> depMngt = project.getModel().getDependencyManagement() == null ? Collections.emptyList()
+                : project.getModel().getDependencyManagement().getDependencies();
 
         if ( !findDependencyVersion( artifact, deps, false )
-            && ( project.getDependencyManagement() == null || !findDependencyVersion( artifact, depMngt, false ) )
-            && !findDependencyVersion( artifact, deps, true )
-            && ( project.getDependencyManagement() == null || !findDependencyVersion( artifact, depMngt, true ) ) )
+                && ( project.getModel().getDependencyManagement() == null || !findDependencyVersion( artifact, depMngt,
+                false ) )
+                && !findDependencyVersion( artifact, deps, true )
+                && ( project.getModel().getDependencyManagement() == null || !findDependencyVersion( artifact, depMngt,
+                true ) ) )
         {
-            throw new MojoExecutionException( "Unable to find artifact version of " + artifact.getGroupId() + ":"
-                + artifact.getArtifactId() + " in either dependency list or in project's dependency management." );
+            throw new MojoException( "Unable to find artifact version of " + artifact.getGroupId() + ":"
+                    + artifact.getArtifactId() + " in either dependency list or in project's dependency management." );
         }
     }
 
@@ -289,9 +273,9 @@ public abstract class AbstractFromConfigurationMojo
      * Tries to find missing version from a list of dependencies. If found, the artifact is updated with the correct
      * version.
      *
-     * @param artifact representing configured file.
+     * @param artifact     representing configured file.
      * @param dependencies list of dependencies to search.
-     * @param looseMatch only look at artifactId and groupId
+     * @param looseMatch   only look at artifactId and groupId
      * @return the found dependency
      */
     private boolean findDependencyVersion( ArtifactItem artifact, List<Dependency> dependencies, boolean looseMatch )
@@ -299,9 +283,9 @@ public abstract class AbstractFromConfigurationMojo
         for ( Dependency dependency : dependencies )
         {
             if ( Objects.equals( dependency.getArtifactId(), artifact.getArtifactId() )
-                && Objects.equals( dependency.getGroupId(), artifact.getGroupId() )
-                && ( looseMatch || Objects.equals( dependency.getClassifier(), artifact.getClassifier() ) )
-                && ( looseMatch || Objects.equals( dependency.getType(), artifact.getType() ) ) )
+                    && Objects.equals( dependency.getGroupId(), artifact.getGroupId() )
+                    && ( looseMatch || Objects.equals( dependency.getClassifier(), artifact.getClassifier() ) )
+                    && ( looseMatch || Objects.equals( dependency.getType(), artifact.getType() ) ) )
             {
                 artifact.setVersion( dependency.getVersion() );
 
@@ -331,7 +315,7 @@ public abstract class AbstractFromConfigurationMojo
     /**
      * @return Returns the outputDirectory.
      */
-    public File getOutputDirectory()
+    public Path getOutputDirectory()
     {
         return this.outputDirectory;
     }
@@ -339,7 +323,7 @@ public abstract class AbstractFromConfigurationMojo
     /**
      * @param theOutputDirectory The outputDirectory to set.
      */
-    public void setOutputDirectory( File theOutputDirectory )
+    public void setOutputDirectory( Path theOutputDirectory )
     {
         this.outputDirectory = theOutputDirectory;
     }
@@ -395,17 +379,17 @@ public abstract class AbstractFromConfigurationMojo
     /**
      * @param localRepositoryDirectory {@link #localRepositoryDirectory}
      */
-    public void setLocalRepositoryDirectory( File localRepositoryDirectory )
+    public void setLocalRepositoryDirectory( Path localRepositoryDirectory )
     {
         this.localRepositoryDirectory = localRepositoryDirectory;
     }
 
     /**
      * @param artifact The artifact.
-     * @throws MojoFailureException in case of an error.
+     * @throws MojoException in case of an error.
      */
     public void setArtifact( String artifact )
-        throws MojoFailureException
+            throws MojoException
     {
         if ( artifact != null )
         {
@@ -414,8 +398,8 @@ public abstract class AbstractFromConfigurationMojo
             String[] tokens = StringUtils.split( artifact, ":" );
             if ( tokens.length < 3 || tokens.length > 5 )
             {
-                throw new MojoFailureException( "Invalid artifact, "
-                    + "you must specify groupId:artifactId:version[:packaging[:classifier]] " + artifact );
+                throw new MojoException( "Invalid artifact, "
+                        + "you must specify groupId:artifactId:version[:packaging[:classifier]] " + artifact );
             }
             String groupId = tokens[0];
             String artifactId = tokens[1];

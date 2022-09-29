@@ -19,8 +19,6 @@ package org.apache.maven.plugins.dependency.analyze;
  * under the License.
  */
 
-import java.io.IOException;
-import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -28,18 +26,19 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.util.ReaderFactory;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.model.Dependency;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.plugin.Log;
+import org.apache.maven.api.plugin.MojoException;
+import org.apache.maven.api.plugin.annotations.Component;
+import org.apache.maven.api.plugin.annotations.Mojo;
+import org.apache.maven.api.plugin.annotations.Parameter;
+import org.apache.maven.api.services.xml.ModelXmlFactory;
+
+import static org.apache.maven.plugins.dependency.utils.DependencyUtil.getManagementKey;
 
 /**
  * Analyzes the <code>&lt;dependencies/&gt;</code> and <code>&lt;dependencyManagement/&gt;</code> tags in the
@@ -47,15 +46,15 @@ import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
  *
  * @author <a href="mailto:vincent.siveton@gmail.com">Vincent Siveton</a>
  */
-@Mojo( name = "analyze-duplicate", aggregator = false, threadSafe = true )
+@Mojo( name = "analyze-duplicate" )
 public class AnalyzeDuplicateMojo
-    extends AbstractMojo
+        implements org.apache.maven.api.plugin.Mojo
 {
     public static final String MESSAGE_DUPLICATE_DEP_IN_DEPENDENCIES =
-        "List of duplicate dependencies defined in <dependencies/> in your pom.xml:\n";
+            "List of duplicate dependencies defined in <dependencies/> in your pom.xml:\n";
 
     public static final String MESSAGE_DUPLICATE_DEP_IN_DEPMGMT =
-        "List of duplicate dependencies defined in <dependencyManagement/> in your pom.xml:\n";
+            "List of duplicate dependencies defined in <dependencyManagement/> in your pom.xml:\n";
 
     /**
      * Skip plugin execution completely.
@@ -69,14 +68,20 @@ public class AnalyzeDuplicateMojo
      * The Maven project to analyze.
      */
     @Parameter( defaultValue = "${project}", readonly = true, required = true )
-    private MavenProject project;
+    private Project project;
+
+    @Component
+    private Log log;
+
+    @Component
+    private Session session;
 
     /**
      * {@inheritDoc}
      */
     @Override
     public void execute()
-        throws MojoExecutionException, MojoFailureException
+            throws MojoException
     {
         if ( skip )
         {
@@ -84,16 +89,7 @@ public class AnalyzeDuplicateMojo
             return;
         }
 
-        MavenXpp3Reader pomReader = new MavenXpp3Reader();
-        Model model;
-        try ( Reader reader = ReaderFactory.newXmlReader( project.getFile() ) )
-        {
-            model = pomReader.read( reader );
-        }
-        catch ( IOException | XmlPullParserException e )
-        {
-            throw new MojoExecutionException( "Exception: " + e.getMessage(), e );
-        }
+        Model model = session.getService( ModelXmlFactory.class ).read( project.getPomPath().get() );
 
         Set<String> duplicateDependencies = Collections.emptySet();
         if ( model.getDependencies() != null )
@@ -105,7 +101,7 @@ public class AnalyzeDuplicateMojo
         if ( model.getDependencyManagement() != null && model.getDependencyManagement().getDependencies() != null )
         {
             duplicateDependenciesManagement =
-                findDuplicateDependencies( model.getDependencyManagement().getDependencies() );
+                    findDuplicateDependencies( model.getDependencyManagement().getDependencies() );
         }
 
         if ( getLog().isInfoEnabled() )
@@ -124,6 +120,11 @@ public class AnalyzeDuplicateMojo
                 getLog().info( "No duplicate dependencies found in <dependencies/> or in <dependencyManagement/>" );
             }
         }
+    }
+
+    public Log getLog()
+    {
+        return log;
     }
 
     private void createMessage( Set<String> duplicateDependencies, StringBuilder sb,
@@ -154,7 +155,7 @@ public class AnalyzeDuplicateMojo
         List<String> modelDependencies2 = new ArrayList<>();
         for ( Dependency dep : modelDependencies )
         {
-            modelDependencies2.add( dep.getManagementKey() );
+            modelDependencies2.add( getManagementKey( dep ) );
         }
 
         // @formatter:off
