@@ -79,9 +79,6 @@ ${project.name}
   *{{{./properties-mojo.html}dependency:properties}} set a property for each project dependency containing the
   to the artifact on the file system.
 
-  *{{{./purge-local-repository-mojo.html}dependency:purge-local-repository}} tells Maven to clear dependency artifact
-  files out of the local repository, and optionally re-resolve them.
-
   *{{{./resolve-mojo.html}dependency:resolve}} tells Maven to resolve all dependencies and displays the version. <<JAVA 9 NOTE:>> <will display the
   module name when running with Java 9.>
 
