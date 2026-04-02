@@ -99,6 +99,7 @@ under the License.
     <domtripVersion>0.6.0</domtripVersion>
     <plexus-archiver.version>4.11.0</plexus-archiver.version>
     <pluginTestingVersion>3.5.1</pluginTestingVersion>
+    <tamboui.version>0.1.0</tamboui.version>
 
     <!-- strict check by dependency:analyze-only -->
     <enforce.dependency.declarations>true</enforce.dependency.declarations>
@@ -287,6 +288,28 @@ under the License.
       <version>${slf4jVersion}</version>
     </dependency>
 
+    <!-- tamboui TUI -->
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-core</artifactId>
+      <version>${tamboui.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-tui</artifactId>
+      <version>${tamboui.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-widgets</artifactId>
+      <version>${tamboui.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-jline3-backend</artifactId>
+      <version>${tamboui.version}</version>
+    </dependency>
+
     <!-- promote dependencies from transitive ones since we do use them in render-dependencies mojo -->
     <dependency>
       <groupId>org.apache.velocity</groupId>
@@ -447,6 +470,8 @@ under the License.
                   <ignoredUnusedDeclaredDependency>org.apache.maven.resolver:maven-resolver-transport-file</ignoredUnusedDeclaredDependency>
                   <ignoredUnusedDeclaredDependency>org.apache.maven.resolver:maven-resolver-transport-http</ignoredUnusedDeclaredDependency>
                   <ignoredUnusedDeclaredDependency>org.junit.vintage:junit-vintage-engine</ignoredUnusedDeclaredDependency>
+                  <!-- TUI runtime backend -->
+                  <ignoredUnusedDeclaredDependency>dev.tamboui:tamboui-jline3-backend</ignoredUnusedDeclaredDependency>
                 </ignoredUnusedDeclaredDependencies>
               </configuration>
             </execution>

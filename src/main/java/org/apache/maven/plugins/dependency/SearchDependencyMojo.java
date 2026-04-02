@@ -22,10 +22,10 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.List;
 
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -72,6 +72,12 @@ public class SearchDependencyMojo extends AbstractDependencyMojo {
     @Parameter(property = "rows", defaultValue = "20")
     private int rows;
 
+    /**
+     * Launch interactive TUI mode for browsing and selecting artifacts.
+     */
+    @Parameter(property = "interactive", defaultValue = "false")
+    private boolean interactive;
+
     @Inject
     public SearchDependencyMojo(MavenSession session, BuildContext buildContext, MavenProject project) {
         super(session, buildContext, project);
@@ -82,11 +88,16 @@ public class SearchDependencyMojo extends AbstractDependencyMojo {
         getLog().info("Searching Maven Central for: " + query);
 
         try {
-            String url = buildSearchUrl();
-            JsonObject response = executeSearch(url);
+            JsonObject response = queryApi(query, rows, 0);
             JsonObject responseBody = response.getJsonObject("response");
             int totalHits = responseBody.getInt("numFound");
             JsonArray docs = responseBody.getJsonArray("docs");
+
+            if (interactive) {
+                List<String[]> initialResults = SearchTui.extractArtifacts(responseBody);
+                launchTui(query.trim(), initialResults, totalHits);
+                return;
+            }
 
             if (docs.isEmpty()) {
                 getLog().info("No results found.");
@@ -96,7 +107,6 @@ public class SearchDependencyMojo extends AbstractDependencyMojo {
             getLog().info("Found " + totalHits + " result(s), showing " + docs.size() + ":");
             getLog().info("");
 
-            // Print header
             String format = "%-40s %-30s %-15s";
             getLog().info(String.format(format, "GroupId", "ArtifactId", "Version"));
             getLog().info(String.format(format, dashes(40), dashes(30), dashes(15)));
@@ -118,8 +128,49 @@ public class SearchDependencyMojo extends AbstractDependencyMojo {
         }
     }
 
-    private String buildSearchUrl() throws UnsupportedEncodingException {
-        return SEARCH_URL + "?q=" + URLEncoder.encode(query, "UTF-8") + "&rows=" + rows + "&wt=json";
+    private void launchTui(String initialQuery, List<String[]> initialResults, int totalHits)
+            throws MojoExecutionException {
+        SearchTui tui = new SearchTui(this::queryApi, initialQuery, initialResults, totalHits);
+        try {
+            String selectedGav = tui.run();
+            if (selectedGav != null) {
+                getLog().info("Selected: " + selectedGav);
+                getLog().info("To add:   mvn dependency:add -Dgav=\"" + selectedGav + "\"");
+            }
+        } catch (Exception e) {
+            throw new MojoExecutionException("TUI failed: " + e.getMessage(), e);
+        }
+    }
+
+    JsonObject queryApi(String searchQuery, int numRows, int start) throws IOException, MojoExecutionException {
+        String q = addWildcard(searchQuery);
+        String url = SEARCH_URL + "?q=" + URLEncoder.encode(q, "UTF-8") + "&rows=" + numRows + "&start=" + start
+                + "&wt=json&core=ga";
+        return executeSearch(url);
+    }
+
+    /**
+     * For free-text queries (no Solr field syntax), wrap each token with wildcards
+     * so partial input like "commons-l" matches "commons-lang3".
+     * Queries using Solr field syntax (containing {@code :}) are left as-is.
+     */
+    static String addWildcard(String query) {
+        String q = query.trim();
+        if (q.isEmpty() || q.contains(":")) {
+            return q;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String token : q.split("\\s+")) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            if (token.startsWith("*") || token.endsWith("*")) {
+                sb.append(token);
+            } else {
+                sb.append('*').append(token).append('*');
+            }
+        }
+        return sb.toString();
     }
 
     private JsonObject executeSearch(String url) throws IOException, MojoExecutionException {
